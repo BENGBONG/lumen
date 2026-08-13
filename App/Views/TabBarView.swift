@@ -81,10 +81,16 @@ private struct TabChip: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(isActive
-                      ? theme.paneBackground
-                      : AnyShapeStyle(isHovering ? theme.rowHover : Color.clear))
+            ZStack {
+                if isActive {
+                    // 活跃标签与窗格同色（材质+染色），形成"标签连通页面"的隐喻
+                    Rectangle().fill(theme.paneBackground)
+                    Rectangle().fill(theme.paneTint)
+                } else if isHovering {
+                    Rectangle().fill(theme.rowHover)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 5))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 5)

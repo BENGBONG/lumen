@@ -16,8 +16,8 @@ public struct ModernDarkTheme: AppearanceTheme {
     public var paneBackground: AnyShapeStyle {
         AnyShapeStyle(.thinMaterial)
     }
-    public var chromeTint: Color { Color(red: 0.094, green: 0.106, blue: 0.133).opacity(0.72) }
-    public var paneTint: Color { Color(red: 0.071, green: 0.082, blue: 0.106).opacity(0.78) }
+    public var chromeTint: Color { Color(red: 0.094, green: 0.106, blue: 0.133).opacity(0.88) }
+    public var paneTint: Color { Color(red: 0.071, green: 0.082, blue: 0.106).opacity(0.93) }
 
     public var rowSelected: Color { Color(red: 0.227, green: 0.357, blue: 0.706).opacity(0.38) }
     public var rowSelectedInactive: Color { Color.white.opacity(0.10) }

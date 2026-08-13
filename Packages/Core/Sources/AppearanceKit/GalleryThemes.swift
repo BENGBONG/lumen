@@ -10,8 +10,8 @@ public struct OceanDepthTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(Color(red: 0.043, green: 0.071, blue: 0.125)) }
     public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var chromeTint: Color { Color(red: 0.059, green: 0.106, blue: 0.176).opacity(0.78) }
-    public var paneTint: Color { Color(red: 0.043, green: 0.078, blue: 0.141).opacity(0.84) }
+    public var chromeTint: Color { Color(red: 0.059, green: 0.106, blue: 0.176).opacity(0.88) }
+    public var paneTint: Color { Color(red: 0.043, green: 0.078, blue: 0.141).opacity(0.93) }
 
     public var rowSelected: Color { Color(red: 0.133, green: 0.827, blue: 0.933).opacity(0.30) }
     public var rowSelectedInactive: Color { Color.white.opacity(0.10) }
@@ -41,8 +41,8 @@ public struct AmberDuskTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(Color(red: 0.086, green: 0.067, blue: 0.051)) }
     public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var chromeTint: Color { Color(red: 0.129, green: 0.094, blue: 0.071).opacity(0.78) }
-    public var paneTint: Color { Color(red: 0.098, green: 0.075, blue: 0.059).opacity(0.84) }
+    public var chromeTint: Color { Color(red: 0.129, green: 0.094, blue: 0.071).opacity(0.88) }
+    public var paneTint: Color { Color(red: 0.098, green: 0.075, blue: 0.059).opacity(0.93) }
 
     public var rowSelected: Color { Color(red: 0.961, green: 0.647, blue: 0.141).opacity(0.32) }
     public var rowSelectedInactive: Color { Color.white.opacity(0.10) }
@@ -72,8 +72,8 @@ public struct MatchaTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(Color(red: 0.965, green: 0.961, blue: 0.929)) }
     public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var chromeTint: Color { Color(red: 0.929, green: 0.925, blue: 0.878).opacity(0.72) }
-    public var paneTint: Color { Color(red: 0.984, green: 0.980, blue: 0.957).opacity(0.86) }
+    public var chromeTint: Color { Color(red: 0.929, green: 0.925, blue: 0.878).opacity(0.85) }
+    public var paneTint: Color { Color(red: 0.984, green: 0.980, blue: 0.957).opacity(0.93) }
 
     public var rowSelected: Color { Color(red: 0.42, green: 0.557, blue: 0.306).opacity(0.22) }
     public var rowSelectedInactive: Color { Color(red: 0.35, green: 0.36, blue: 0.32).opacity(0.14) }
@@ -103,8 +103,8 @@ public struct RoseTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(Color(red: 0.976, green: 0.949, blue: 0.957)) }
     public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var chromeTint: Color { Color(red: 0.961, green: 0.918, blue: 0.929).opacity(0.72) }
-    public var paneTint: Color { Color(red: 0.992, green: 0.973, blue: 0.976).opacity(0.86) }
+    public var chromeTint: Color { Color(red: 0.961, green: 0.918, blue: 0.929).opacity(0.85) }
+    public var paneTint: Color { Color(red: 0.992, green: 0.973, blue: 0.976).opacity(0.93) }
 
     public var rowSelected: Color { Color(red: 0.839, green: 0.325, blue: 0.427).opacity(0.20) }
     public var rowSelectedInactive: Color { Color(red: 0.42, green: 0.36, blue: 0.38).opacity(0.13) }
@@ -134,8 +134,8 @@ public struct InkTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(Color.white) }
     public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var chromeTint: Color { Color(red: 0.955, green: 0.955, blue: 0.949).opacity(0.78) }
-    public var paneTint: Color { Color.white.opacity(0.88) }
+    public var chromeTint: Color { Color(red: 0.955, green: 0.955, blue: 0.949).opacity(0.87) }
+    public var paneTint: Color { Color.white.opacity(0.94) }
 
     public var rowSelected: Color { Color.black.opacity(0.14) }
     public var rowSelectedInactive: Color { Color.black.opacity(0.07) }
