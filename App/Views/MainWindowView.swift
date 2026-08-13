@@ -12,6 +12,7 @@ struct MainWindowView: View {
     @State private var inspectorVisible = false
     @State private var chatVisible = false
     @State private var chatContextURLs: [URL] = []
+    @State private var undoToast: String? = nil   // 撤回操作的瞬时反馈
     @StateObject private var queue: TransferQueue
 
     enum PaneSide { case left, right }
@@ -83,8 +84,15 @@ struct MainWindowView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .flUndo)) { _ in
             Task {
-                let label = await queue.undoLast()
-                if label == nil { NSSound.beep() }
+                guard let result = await queue.undoLast() else {
+                    NSSound.beep()   // 没有可撤回的操作
+                    return
+                }
+                if result.failures.isEmpty {
+                    undoToast = "已撤回：\(result.label)"
+                } else {
+                    undoToast = "已撤回：\(result.label)（\(result.failures.count) 项失败）"
+                }
                 // 撤回改变了文件系统：两个窗格都刷新兜底
                 // （本地目录的 DirectoryWatcher 通常已自动刷新，这里是双保险）
                 await leftTabs.active.reload()
@@ -140,6 +148,24 @@ struct MainWindowView: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .bottom) {
+            if let undoToast {
+                Text(undoToast)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                            withAnimation { self.undoToast = nil }
+                        }
+                    }
+            }
+        }
+        .animation(.spring(duration: 0.25), value: undoToast != nil)
         .animation(.easeInOut(duration: 0.22), value: chatVisible)
         .animation(.easeInOut(duration: 0.22), value: inspectorVisible)
         .navigationTitle(activeTabs().active.displayName)

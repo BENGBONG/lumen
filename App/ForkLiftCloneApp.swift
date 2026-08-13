@@ -42,6 +42,15 @@ struct ForkLiftCloneApp: App {
             // Don't intercept while a sheet (rename dialog etc.) is up.
             if NSApp.modalWindow != nil { return event }
 
+            // Cmd+Z — 撤回最近一批传输。本地监视器在菜单键匹配之前触发，
+            // 吃掉事件即不会与菜单项重复触发。
+            if chars == "z",
+               event.modifierFlags.contains(.command),
+               !event.modifierFlags.contains(.shift) {
+                NotificationCenter.default.post(name: .flUndo, object: nil)
+                return nil
+            }
+
             let scalar = chars.unicodeScalars.first!.value
             switch scalar {
             case 0xF705: // F2 – rename
@@ -65,7 +74,9 @@ struct ForkLiftCloneApp: App {
 
 struct FileCommands: Commands {
     var body: some Commands {
-        CommandGroup(replacing: .undo) {
+        // 注：CommandGroupPlacement 没有 .undo——撤回放在剪贴板组之前，
+        // 即编辑菜单顶部（Undo 的标准位置）
+        CommandGroup(before: .pasteboard) {
             Button("撤回") {
                 NotificationCenter.default.post(name: .flUndo, object: nil)
             }

@@ -70,20 +70,30 @@ public final class TransferQueue: ObservableObject {
     public var canUndo: Bool { !undoStack.isEmpty }
     public var undoLabel: String? { undoStack.last?.label }
 
-    /// 撤回最近一批传输。返回被撤回的批次描述；无可撤回时返回 nil。
-    /// 个别逆操作失败（如原位置已有同名文件）会跳过，不中断整批。
+    /// 撤回最近一批传输。返回（批次描述, 失败原因列表）；无可撤回时返回 nil。
+    /// 个别逆操作失败（如原位置已有同名文件）会跳过并记入 failures，不中断整批。
     @discardableResult
-    public func undoLast() async -> String? {
+    public func undoLast() async -> (label: String, failures: [String])? {
         guard let batch = undoStack.popLast() else { return nil }
+        var failures: [String] = []
         for op in batch.ops.reversed() {
-            switch op {
-            case .trashCreated(let path):
-                try? await provider.delete(path, toTrash: true)
-            case .moveBack(let from, let to):
-                try? await provider.move(from, to: to)
+            do {
+                switch op {
+                case .trashCreated(let path):
+                    try await provider.delete(path, toTrash: true)
+                case .moveBack(let from, let to):
+                    try await provider.move(from, to: to)
+                }
+            } catch {
+                let name: String
+                switch op {
+                case .trashCreated(let path): name = path.components.last ?? ""
+                case .moveBack(let from, _): name = from.components.last ?? ""
+                }
+                failures.append("\(name): \(error.localizedDescription)")
             }
         }
-        return batch.label
+        return (batch.label, failures)
     }
 
     /// 任务成功后记录逆操作；批次全部终态时汇总进撤回栈。

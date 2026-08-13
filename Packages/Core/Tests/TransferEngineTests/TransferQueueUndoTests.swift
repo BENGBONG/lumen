@@ -62,8 +62,8 @@ final class TransferQueueUndoTests: XCTestCase {
         XCTAssertEqual(queue.undoLabel, "复制 2 个项目到 dest")
         XCTAssertTrue(FileManager.default.fileExists(atPath: destDir.appendingPathComponent("a.txt").path))
 
-        let label = await queue.undoLast()
-        XCTAssertEqual(label, "复制 2 个项目到 dest")
+        let result = await queue.undoLast()
+        XCTAssertEqual(result?.label, "复制 2 个项目到 dest")
         XCTAssertFalse(queue.canUndo)
         // 两个副本都被送入废纸篓，源文件不受影响
         XCTAssertFalse(FileManager.default.fileExists(atPath: destDir.appendingPathComponent("a.txt").path))
@@ -87,8 +87,8 @@ final class TransferQueueUndoTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: src.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dst.path))
 
-        let label = await queue.undoLast()
-        XCTAssertEqual(label, "移动 m.txt")
+        let result = await queue.undoLast()
+        XCTAssertEqual(result?.label, "移动 m.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: src.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: dst.path))
         XCTAssertEqual(try String(contentsOf: src, encoding: .utf8), "move-me")
@@ -104,8 +104,8 @@ final class TransferQueueUndoTests: XCTestCase {
         queue.enqueue(TransferTask(kind: .copy, source: bogus, destination: dst))
         await waitForTerminal(queue, count: 1)
         XCTAssertFalse(queue.canUndo)
-        let label = await queue.undoLast()
-        XCTAssertNil(label)
+        let result = await queue.undoLast()
+        XCTAssertNil(result)
     }
 
     // MARK: - 冲突重命名后撤回的是实际产物
