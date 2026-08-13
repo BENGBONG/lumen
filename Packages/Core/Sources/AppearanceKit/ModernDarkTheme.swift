@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct ModernDarkTheme: AppearanceTheme {
     public let id = "modern-dark"
+    public var colorSchemeHint: ColorScheme? { .dark }
     public let displayName = "现代深色"
 
     public init() {}

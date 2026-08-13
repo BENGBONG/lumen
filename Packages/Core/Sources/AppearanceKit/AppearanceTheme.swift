@@ -32,6 +32,12 @@ public protocol AppearanceTheme: Sendable {
     var previewSidebar: Color { get }
     var previewPane: Color { get }
 
+    /// 主题的外观倾向：深色主题 .dark、浅色主题 .light、跟随系统（原生）nil。
+    /// 应用据此设置 NSApp.appearance——否则 SwiftUI 主题色与 AppKit 控件
+    /// （表格/表头跟随系统外观）各画各的：浅色主题在深色系统下会出现
+    /// "浅栏深表"的拼接怪相（2026-08-13 水墨主题事故）。
+    var colorSchemeHint: ColorScheme? { get }
+
     var rowHeight: CGFloat { get }
     var cornerRadius: CGFloat { get }
     var bodyFontSize: CGFloat { get }
@@ -47,6 +53,7 @@ public extension AppearanceTheme {
     var paneBase: Color { Color(nsColor: .textBackgroundColor) }
     var previewSidebar: Color { Color(nsColor: .windowBackgroundColor) }
     var previewPane: Color { Color(nsColor: .textBackgroundColor) }
+    var colorSchemeHint: ColorScheme? { nil }
 }
 
 public struct AppearanceThemeKey: EnvironmentKey {

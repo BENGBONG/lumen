@@ -4,6 +4,7 @@ import SwiftUI
 
 public struct OceanDepthTheme: AppearanceTheme {
     public let id = "ocean-depth"
+    public var colorSchemeHint: ColorScheme? { .dark }
     public let displayName = "深海"
     public init() {}
 
@@ -37,6 +38,7 @@ public struct OceanDepthTheme: AppearanceTheme {
 
 public struct AmberDuskTheme: AppearanceTheme {
     public let id = "amber-dusk"
+    public var colorSchemeHint: ColorScheme? { .dark }
     public let displayName = "琥珀"
     public init() {}
 
@@ -70,6 +72,7 @@ public struct AmberDuskTheme: AppearanceTheme {
 
 public struct MatchaTheme: AppearanceTheme {
     public let id = "matcha"
+    public var colorSchemeHint: ColorScheme? { .light }
     public let displayName = "抹茶"
     public init() {}
 
@@ -103,6 +106,7 @@ public struct MatchaTheme: AppearanceTheme {
 
 public struct RoseTheme: AppearanceTheme {
     public let id = "rose"
+    public var colorSchemeHint: ColorScheme? { .light }
     public let displayName = "蔷薇"
     public init() {}
 
@@ -136,6 +140,7 @@ public struct RoseTheme: AppearanceTheme {
 
 public struct InkTheme: AppearanceTheme {
     public let id = "ink"
+    public var colorSchemeHint: ColorScheme? { .light }
     public let displayName = "水墨"
     public init() {}
 

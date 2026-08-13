@@ -14,6 +14,7 @@ struct MainWindowView: View {
     @State private var chatContextURLs: [URL] = []
     @State private var undoToast: String? = nil   // 撤回操作的瞬时反馈
     @StateObject private var queue: TransferQueue
+    @Environment(\.appearanceTheme) private var theme
 
     enum PaneSide { case left, right }
 
@@ -74,6 +75,13 @@ struct MainWindowView: View {
             // 恢复的所有标签页都在启动时装载（切过去即有内容）
             for tab in leftTabs.tabs { await tab.load() }
             for tab in rightTabs.tabs { await tab.load() }
+        }
+        // 主题决定应用外观：深/浅主题强制对应 appearance，原生主题跟随系统。
+        // 否则 SwiftUI 主题色与 AppKit 表格（跟随系统外观）会各画各的。
+        .task(id: theme.id) {
+            NSApp.appearance = theme.colorSchemeHint.flatMap {
+                NSAppearance(named: $0 == .dark ? .darkAqua : .aqua)
+            }
         }
         .onChange(of: leftTabs.active.currentPath) { _, _ in persistPaneState() }
         .onChange(of: rightTabs.active.currentPath) { _, _ in persistPaneState() }

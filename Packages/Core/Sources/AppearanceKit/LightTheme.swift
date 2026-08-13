@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct LightTheme: AppearanceTheme {
     public let id = "light"
+    public var colorSchemeHint: ColorScheme? { .light }
     public let displayName = "轻量明亮"
 
     public init() {}
