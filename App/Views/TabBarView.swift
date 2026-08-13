@@ -83,7 +83,8 @@ private struct TabChip: View {
         .background(
             ZStack {
                 if isActive {
-                    // 活跃标签与窗格同色（材质+染色），形成"标签连通页面"的隐喻
+                    // 活跃标签与窗格同色（底色+材质+染色），形成"标签连通页面"的隐喻
+                    Rectangle().fill(theme.paneBase)
                     Rectangle().fill(theme.paneBackground)
                     Rectangle().fill(theme.paneTint)
                 } else if isHovering {

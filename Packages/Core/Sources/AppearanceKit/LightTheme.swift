@@ -15,6 +15,8 @@ public struct LightTheme: AppearanceTheme {
     public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
     public var chromeTint: Color { Color(red: 0.965, green: 0.967, blue: 0.972).opacity(0.82) }
     public var paneTint: Color { Color.white.opacity(0.90) }
+    public var chromeBase: Color { Color(red: 0.965, green: 0.967, blue: 0.972) }
+    public var paneBase: Color { Color.white }
 
     public var rowSelected: Color { Color(red: 0.247, green: 0.439, blue: 0.937).opacity(0.20) }
     public var rowSelectedInactive: Color { Color(red: 0.45, green: 0.47, blue: 0.50).opacity(0.16) }

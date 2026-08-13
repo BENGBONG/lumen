@@ -18,6 +18,11 @@ public protocol AppearanceTheme: Sendable {
     var chromeTint: Color { get }
     /// 叠加在表格区材质背景之上的染色，默认无色。
     var paneTint: Color { get }
+    /// 镀铬层材质底下的不透明底色——挡住桌面壁纸渗透（深色模式下
+    /// ultraThinMaterial 太透，浅壁纸会透上来形成脏色块）。
+    var chromeBase: Color { get }
+    /// 表格区材质底下的不透明底色。
+    var paneBase: Color { get }
 
     var primaryText: Color { get }
     var secondaryText: Color { get }
@@ -37,6 +42,9 @@ public extension AppearanceTheme {
     var rowSelectedInactive: Color { Color.gray.opacity(0.18) }
     var chromeTint: Color { .clear }
     var paneTint: Color { .clear }
+    // 默认跟随系统深浅的不透明底色（NSColor 动态色，dark/light 自适应）
+    var chromeBase: Color { Color(nsColor: .windowBackgroundColor) }
+    var paneBase: Color { Color(nsColor: .textBackgroundColor) }
     var previewSidebar: Color { Color(nsColor: .windowBackgroundColor) }
     var previewPane: Color { Color(nsColor: .textBackgroundColor) }
 }
