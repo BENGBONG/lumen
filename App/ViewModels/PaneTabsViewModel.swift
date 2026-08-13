@@ -17,6 +17,21 @@ public final class PaneTabsViewModel {
         self.activeID = first.id
     }
 
+    /// 多标签恢复（重启后还原会话）。paths 为空时回退单标签根目录。
+    public init(provider: any FileProvider, initialPaths: [ProviderPath], activeIndex: Int) {
+        self.provider = provider
+        let vms = initialPaths.map { PaneViewModel(provider: provider, initialPath: $0) }
+        if vms.isEmpty {
+            let first = PaneViewModel(provider: provider, initialPath:
+                ProviderPath(providerID: provider.id, components: []))
+            self.tabs = [first]
+            self.activeID = first.id
+        } else {
+            self.tabs = vms
+            self.activeID = vms[min(max(activeIndex, 0), vms.count - 1)].id
+        }
+    }
+
     public var active: PaneViewModel {
         tabs.first(where: { $0.id == activeID }) ?? tabs[0]
     }

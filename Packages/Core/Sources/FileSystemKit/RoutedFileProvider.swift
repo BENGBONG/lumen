@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum RoutedProviderError: Error, LocalizedError, Equatable {
     case archiveReadOnly
@@ -38,6 +39,12 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
     public init() {
         // 会话级缓存：启动时清掉上次遗留
         try? fm.removeItem(at: Self.cacheRoot)
+    }
+
+    /// 缓存目录名：SHA256 前 16 字节 hex（hashValue 有碰撞风险且每次启动随机化）。
+    static func cacheKey(for raw: String) -> String {
+        let digest = SHA256.hash(data: Data(raw.utf8))
+        return digest.prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
     private static var cacheRoot: URL {
@@ -112,7 +119,7 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
         lock.unlock()
 
         let dir = Self.cacheRoot
-            .appendingPathComponent(String(key.hashValue, radix: 36))
+            .appendingPathComponent(Self.cacheKey(for: key))
             .appendingPathComponent(archiveURL.lastPathComponent)
         if !fm.fileExists(atPath: dir.path) {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)

@@ -8,7 +8,7 @@ struct MainWindowView: View {
     @State private var leftTabs: PaneTabsViewModel
     @State private var rightTabs: PaneTabsViewModel
     @State private var bookmarks = BookmarksStore()
-    @State private var focusedSide: PaneSide = .left
+    @State private var focusedSide: PaneSide
     @State private var inspectorVisible = false
     @State private var chatVisible = false
     @State private var chatContextURLs: [URL] = []
@@ -18,29 +18,45 @@ struct MainWindowView: View {
     enum PaneSide { case left, right }
 
     init() {
-        // RoutedFileProvider：对外仍是本地路径语义，但路径穿过 .zip 时
+        // RoutedFileProvider：对外仍是本地路径语义，但路径穿过归档文件时
         // 自动切换为归档虚拟目录（双击进入浏览、条目可拷出、内部只读）。
         let provider = RoutedFileProvider()
         let home = FileManager.default.homeDirectoryForCurrentUser
         let snapshot = PaneStateStore.load()
-        let leftURL = snapshot
-            .flatMap { URL(fileURLWithPath: $0.leftPath) }
-            .flatMap(Self.directoryOrNil) ?? home
-        let rightURL = snapshot
-            .flatMap { URL(fileURLWithPath: $0.rightPath) }
-            .flatMap(Self.directoryOrNil) ?? URL(fileURLWithPath: "/Applications")
-        let leftPath = provider.providerPath(for: leftURL)
-        let rightPath = provider.providerPath(for: rightURL)
-        _leftTabs = State(wrappedValue: PaneTabsViewModel(provider: provider, initialPath: leftPath))
-        _rightTabs = State(wrappedValue: PaneTabsViewModel(provider: provider, initialPath: rightPath))
+
+        func paths(from strings: [String]?, fallback: URL) -> [ProviderPath] {
+            let valid = (strings ?? []).compactMap { s -> ProviderPath? in
+                let url = URL(fileURLWithPath: s)
+                return Self.restorable(url) ? provider.providerPath(for: url) : nil
+            }
+            return valid.isEmpty ? [provider.providerPath(for: fallback)] : valid
+        }
+
+        let leftPaths  = paths(from: snapshot?.leftTabs,  fallback: home)
+        let rightPaths = paths(from: snapshot?.rightTabs, fallback: URL(fileURLWithPath: "/Applications"))
+        _leftTabs = State(wrappedValue: PaneTabsViewModel(
+            provider: provider, initialPaths: leftPaths,
+            activeIndex: snapshot?.leftActive ?? 0))
+        _rightTabs = State(wrappedValue: PaneTabsViewModel(
+            provider: provider, initialPaths: rightPaths,
+            activeIndex: snapshot?.rightActive ?? 0))
+        _focusedSide = State(wrappedValue: (snapshot?.focusedLeft ?? true) ? .left : .right)
         _queue = StateObject(wrappedValue: TransferQueue(provider: provider,
                                                          resolver: UserConflictResolver()))
     }
 
-    private static func directoryOrNil(_ url: URL) -> URL? {
+    /// 可恢复的路径：真实目录，或穿过可浏览归档的虚拟路径（逐级向上找归档文件）。
+    private static func restorable(_ url: URL) -> Bool {
+        let fm = FileManager.default
         var isDir: ObjCBool = false
-        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
-            ? url : nil
+        if fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue { return true }
+        var cur = url
+        while cur.path != "/" {
+            if fm.fileExists(atPath: cur.path, isDirectory: &isDir), !isDir.boolValue,
+               RoutedFileProvider.isBrowsableArchive(name: cur.lastPathComponent) { return true }
+            cur = cur.deletingLastPathComponent()
+        }
+        return false
     }
 
     var body: some View {
@@ -55,11 +71,16 @@ struct MainWindowView: View {
             detailPane
         }
         .task {
-            await leftTabs.active.load()
-            await rightTabs.active.load()
+            // 恢复的所有标签页都在启动时装载（切过去即有内容）
+            for tab in leftTabs.tabs { await tab.load() }
+            for tab in rightTabs.tabs { await tab.load() }
         }
         .onChange(of: leftTabs.active.currentPath) { _, _ in persistPaneState() }
         .onChange(of: rightTabs.active.currentPath) { _, _ in persistPaneState() }
+        .onChange(of: leftTabs.tabs.count) { _, _ in persistPaneState() }
+        .onChange(of: rightTabs.tabs.count) { _, _ in persistPaneState() }
+        .onChange(of: leftTabs.activeID) { _, _ in persistPaneState() }
+        .onChange(of: rightTabs.activeID) { _, _ in persistPaneState() }
         .onChange(of: focusedSide) { _, new in
             // 焦点切到一侧时清空另一侧的选中——同一时间只有一侧有选中项，
             // 避免"两边都选中"的歧义（F5/F6 等操作的对象永远明确）
@@ -68,6 +89,7 @@ struct MainWindowView: View {
             } else {
                 leftTabs.active.selection.removeAll()
             }
+            persistPaneState()
         }
         .onChange(of: queue.tasks.count) { _, count in
             // 小文件秒传不打扰：入队 1.5s 后仍有任务在跑才自动弹出传输面板
@@ -84,50 +106,7 @@ struct MainWindowView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .flPasteFiles)) { note in
-            guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
-            let isCut = note.userInfo?["isCut"] as? Bool ?? false
-            let dest  = activeTabs().active.currentPath
-            handleDrop(urls: urls, destination: dest, kind: isCut ? .move : .copy)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .flNewFile)) { note in
-            guard let raw = note.userInfo?["template"] as? String,
-                  let template = NewFileTemplate(rawValue: raw) else { return }
-            Task { await newFileInActive(template) }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .flBookmarkPaths)) { note in
-            guard let paths = note.userInfo?["paths"] as? [String] else { return }
-            for p in paths {
-                let name = URL(fileURLWithPath: p).lastPathComponent
-                bookmarks.add(Bookmark(name: name.isEmpty ? "/" : name, path: p))
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .flTrashSelected)) { _ in
-            Task { await trashSelectedInActive() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .flRecordUndo)) { note in
-            // AI 批量操作等外部功能登记的可撤回批次
-            if let batch = note.userInfo?["batch"] as? UndoableBatch {
-                queue.recordExternalUndo(batch)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .flUndo)) { _ in
-            Task {
-                guard let result = await queue.undoLast() else {
-                    NSSound.beep()   // 没有可撤回的操作
-                    return
-                }
-                if result.failures.isEmpty {
-                    undoToast = "已撤回：\(result.label)"
-                } else {
-                    undoToast = "已撤回：\(result.label)（\(result.failures.count) 项失败）"
-                }
-                // 撤回改变了文件系统：两个窗格都刷新兜底
-                // （本地目录的 DirectoryWatcher 通常已自动刷新，这里是双保险）
-                await leftTabs.active.reload()
-                await rightTabs.active.reload()
-            }
-        }
+        .modifier(NotificationReceivers(receivers: notificationReceivers))
         .modifier(NotificationListeners(listeners: notificationListeners))
     }
 
@@ -247,6 +226,56 @@ struct MainWindowView: View {
         ]
     }
 
+    /// 带 payload 的通知（单独通道，避免 body 修饰符链过长撑爆类型检查）。
+    private var notificationReceivers: [(Notification.Name, (Notification) -> Void)] {
+        [
+            (.flPasteFiles, { note in
+                guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+                let isCut = note.userInfo?["isCut"] as? Bool ?? false
+                let dest  = self.activeTabs().active.currentPath
+                self.handleDrop(urls: urls, destination: dest, kind: isCut ? .move : .copy)
+            }),
+            (.flNewFile, { note in
+                guard let raw = note.userInfo?["template"] as? String,
+                      let template = NewFileTemplate(rawValue: raw) else { return }
+                Task { await self.newFileInActive(template) }
+            }),
+            (.flBookmarkPaths, { note in
+                guard let paths = note.userInfo?["paths"] as? [String] else { return }
+                for p in paths {
+                    let name = URL(fileURLWithPath: p).lastPathComponent
+                    self.bookmarks.add(Bookmark(name: name.isEmpty ? "/" : name, path: p))
+                }
+            }),
+            (.flTrashSelected, { _ in
+                Task { await self.trashSelectedInActive() }
+            }),
+            (.flRecordUndo, { note in
+                // AI 批量操作等外部功能登记的可撤回批次
+                if let batch = note.userInfo?["batch"] as? UndoableBatch {
+                    self.queue.recordExternalUndo(batch)
+                }
+            }),
+            (.flUndo, { _ in
+                Task {
+                    guard let result = await self.queue.undoLast() else {
+                        NSSound.beep()   // 没有可撤回的操作
+                        return
+                    }
+                    if result.failures.isEmpty {
+                        self.undoToast = "已撤回：\(result.label)"
+                    } else {
+                        self.undoToast = "已撤回：\(result.label)（\(result.failures.count) 项失败）"
+                    }
+                    // 撤回改变了文件系统：两个窗格都刷新兜底
+                    // （本地目录的 DirectoryWatcher 通常已自动刷新，这里是双保险）
+                    await self.leftTabs.active.reload()
+                    await self.rightTabs.active.reload()
+                }
+            }),
+        ]
+    }
+
     private func addCurrentBookmark() {
         let path = activeTabs().active.currentPath
         let name = path.components.last ?? "/"
@@ -271,8 +300,11 @@ struct MainWindowView: View {
 
     private func persistPaneState() {
         PaneStateStore.save(PaneStateSnapshot(
-            leftPath: leftTabs.active.currentPath.displayString,
-            rightPath: rightTabs.active.currentPath.displayString
+            leftTabs: leftTabs.tabs.map { $0.currentPath.displayString },
+            rightTabs: rightTabs.tabs.map { $0.currentPath.displayString },
+            leftActive: leftTabs.tabs.firstIndex(where: { $0.id == leftTabs.activeID }) ?? 0,
+            rightActive: rightTabs.tabs.firstIndex(where: { $0.id == rightTabs.activeID }) ?? 0,
+            focusedLeft: focusedSide == .left
         ))
     }
 
@@ -378,6 +410,21 @@ private struct NotificationListeners: ViewModifier {
             AnyView(
                 acc.onReceive(NotificationCenter.default.publisher(for: listener.0)) { _ in
                     listener.1()
+                }
+            )
+        }
+    }
+}
+
+/// 带 payload 的通知接收器——把 onReceive 链从 body 里抽出来，
+/// 防止修饰符链过长触发 "unable to type-check in reasonable time"。
+private struct NotificationReceivers: ViewModifier {
+    let receivers: [(Notification.Name, (Notification) -> Void)]
+    func body(content: Content) -> some View {
+        receivers.reduce(AnyView(content)) { acc, receiver in
+            AnyView(
+                acc.onReceive(NotificationCenter.default.publisher(for: receiver.0)) { note in
+                    receiver.1(note)
                 }
             )
         }
