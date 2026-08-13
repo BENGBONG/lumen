@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-**Lumen** —— macOS 双窗格文件管理器 + AI（File Chat / AI 搜索 / AI 批量操作）。SwiftUI+AppKit，SwiftPM，macOS 14+。仓库 2026-08-13 从大 monorepo 独立出来（此前两个月工作差点丢失）。可执行产物名仍为 ForkLiftClone，Bundle ID `com.panglin.forkliftclone`（不能改，会丢 Keychain AI key）。
+**Lumen** —— macOS 双窗格文件管理器 + AI（File Chat / AI 搜索 / AI 批量操作）。SwiftUI+AppKit，SwiftPM，macOS 14+。仓库 2026-08-13 从大 monorepo 独立出来（此前两个月工作差点丢失）。**已开源：github.com/BENGBONG/lumen（MIT License），origin/main = main**。可执行产物名仍为 ForkLiftClone，Bundle ID `com.panglin.forkliftclone`（不能改，会丢 Keychain AI key）。
 
 ## 当前功能水位（2026-08-13 收盘）
 
