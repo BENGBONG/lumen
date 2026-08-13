@@ -32,4 +32,7 @@ public struct ModernDarkTheme: AppearanceTheme {
     public let cornerRadius: CGFloat = 5
     public let bodyFontSize: CGFloat = 12.5
     public let captionFontSize: CGFloat = 10.5
+
+    public var previewSidebar: Color { Color(red: 0.094, green: 0.106, blue: 0.133) }
+    public var previewPane: Color { Color(red: 0.071, green: 0.082, blue: 0.106) }
 }

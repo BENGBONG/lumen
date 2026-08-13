@@ -23,4 +23,7 @@ public struct NativeTheme: AppearanceTheme {
     public let cornerRadius: CGFloat = 6
     public let bodyFontSize: CGFloat = 13
     public let captionFontSize: CGFloat = 11
+
+    public var previewSidebar: Color { Color(red: 0.955, green: 0.957, blue: 0.965) }
+    public var previewPane: Color { Color.white }
 }

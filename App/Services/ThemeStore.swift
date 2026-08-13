@@ -11,8 +11,13 @@ public final class ThemeStore {
 
     public static let allThemes: [any AppearanceTheme] = [
         NativeTheme(),
+        LightTheme(),
+        MatchaTheme(),
+        RoseTheme(),
+        InkTheme(),
         ModernDarkTheme(),
-        LightTheme()
+        OceanDepthTheme(),
+        AmberDuskTheme(),
     ]
 
     private static let key = "ForkLiftClone.themeID"

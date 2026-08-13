@@ -23,6 +23,10 @@ public protocol AppearanceTheme: Sendable {
     var secondaryText: Color { get }
     var accent: Color { get }
 
+    /// 设置页预览色板（材质无法在小预览里正确呈现，用等效纯色）。
+    var previewSidebar: Color { get }
+    var previewPane: Color { get }
+
     var rowHeight: CGFloat { get }
     var cornerRadius: CGFloat { get }
     var bodyFontSize: CGFloat { get }
@@ -33,6 +37,8 @@ public extension AppearanceTheme {
     var rowSelectedInactive: Color { Color.gray.opacity(0.18) }
     var chromeTint: Color { .clear }
     var paneTint: Color { .clear }
+    var previewSidebar: Color { Color(nsColor: .windowBackgroundColor) }
+    var previewPane: Color { Color(nsColor: .textBackgroundColor) }
 }
 
 public struct AppearanceThemeKey: EnvironmentKey {

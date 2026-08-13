@@ -15,29 +15,34 @@ struct SettingsView: View {
                 .tabItem { Label("AI", systemImage: "sparkles") }
                 .padding(20)
         }
-        .frame(width: 540, height: 400)
+        .frame(width: 560, height: 480)
     }
 }
 
 private struct AppearanceSettingsView: View {
     @Bindable var themeStore: ThemeStore
 
+    private let columns = [GridItem(.flexible(), spacing: 14),
+                           GridItem(.flexible(), spacing: 14),
+                           GridItem(.flexible(), spacing: 14)]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("主题")
                 .font(.headline)
 
-            HStack(spacing: 14) {
-                ForEach(ThemeStore.allThemes, id: \.id) { theme in
-                    ThemeCard(
-                        theme: theme,
-                        isSelected: theme.id == themeStore.theme.id,
-                        onSelect: { themeStore.setTheme(id: theme.id) }
-                    )
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 14) {
+                    ForEach(ThemeStore.allThemes, id: \.id) { theme in
+                        ThemeCard(
+                            theme: theme,
+                            isSelected: theme.id == themeStore.theme.id,
+                            onSelect: { themeStore.setTheme(id: theme.id) }
+                        )
+                    }
                 }
             }
 
-            Spacer()
             Text("当前选择会立刻应用到所有窗口，重启后保留。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -297,7 +302,8 @@ private struct ThemeCard: View {
         Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 8) {
                 ThemePreview(theme: theme)
-                    .frame(width: 150, height: 100)
+                    .frame(height: 92)
+                    .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
@@ -317,10 +323,11 @@ private struct ThemePreview: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(theme.windowBackground)
+            // 材质在小预览里渲染不出效果，用等效纯色（previewPane/previewSidebar）
+            Rectangle().fill(theme.previewPane)
             HStack(spacing: 0) {
                 Rectangle()
-                    .fill(theme.sidebarBackground)
+                    .fill(theme.previewSidebar)
                     .frame(width: 36)
                 VStack(spacing: 2) {
                     HStack(spacing: 4) {

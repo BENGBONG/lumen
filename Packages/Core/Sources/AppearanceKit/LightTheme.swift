@@ -29,4 +29,7 @@ public struct LightTheme: AppearanceTheme {
     public let cornerRadius: CGFloat = 8
     public let bodyFontSize: CGFloat = 13
     public let captionFontSize: CGFloat = 11
+
+    public var previewSidebar: Color { Color(red: 0.965, green: 0.967, blue: 0.972) }
+    public var previewPane: Color { Color.white }
 }
