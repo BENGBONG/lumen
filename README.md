@@ -1,137 +1,85 @@
-# ForkLiftClone
+# Lumen
 
-类 ForkLift 的 Mac 本地文件管理器，SwiftUI + SwiftPM 构建，目标 macOS 14+。
+macOS 双窗格文件管理器，集成 AI 文件对话与自然语言操作。SwiftUI + AppKit 混合实现，SwiftPM 构建，目标 macOS 14 Sonoma+。
 
-> 详细方案见 `~/.claude/plans/mac-forklift-silly-whistle.md`。
+## 功能现状
 
-## 已交付（阶段 1 + 阶段 2）
+**文件管理：**
+- 双窗格 + 多标签（Cmd+T 复制标签）+ 导航历史（Cmd+[ / Cmd+]）
+- 拖拽移动/复制（含跨窗格 + Finder 互操作）
+- Cmd+C / Cmd+X / Cmd+V 剪贴板
+- F2 内联重命名
+- 传输队列（覆盖式 overlay 面板），实时进度
+- QuickLook（Space）
+- 压缩 / 解压
+- 路径栏直接输入
+- Sidebar 收藏（Cmd+D 添加，JSON 持久化）
+- 三套主题切换（macOS 原生 / 现代深色 / 轻量明亮），Cmd+, 设置
+- DirectoryWatcher：Finder 改动后对应 Pane 自动刷新
 
-- ✅ NavigationSplitView：左侧 **Sidebar 收藏夹** + 右侧 HSplitView 双窗格
-- ✅ **每个 Pane 多 Tab**（Cmd+T 复制当前 Tab，× 关闭）
-- ✅ Pane 工具栏：后退/前进/上级/刷新/隐藏文件 toggle/**当前目录搜索**
-- ✅ 路径栏面包屑、Table 列表（图标/大小/时间），点列头排序
-- ✅ 右键菜单：打开 / 在新标签页打开 / Finder 显示 / 复制路径 / 移到废纸篓
-- ✅ 空格 QuickLook、Cmd+I (待) 等键盘交互
-- ✅ **F5 / F6** 复制/移动到对侧 Pane（NSEvent local monitor）
-- ✅ Cmd+Shift+C / Cmd+Shift+X 备用快捷键
-- ✅ Cmd+[ / Cmd+] / Cmd+↑ / Cmd+R 导航
-- ✅ Cmd+Return 重命名对话框
-- ✅ Cmd+D 把当前目录加入收藏（持久化到 `~/Library/Application Support/ForkLiftClone/bookmarks.json`）
-- ✅ **Pane 之间拖拽**复制（走 TransferQueue）
-- ✅ **传输队列 Inspector**（工具栏图标切换），实时进度、状态、清空已完成
-- ✅ **三套主题**（macOS 原生 / 现代深色 / 轻量明亮），Cmd+, 设置里切换，UserDefaults 持久化
-- ✅ DirectoryWatcher：在 Finder 改文件，对应 Pane 自动刷新
-- ✅ 状态栏：选中数 + 总大小 + loading + 错误
-- ✅ 15 个 Core 单测全绿
+**AI 功能：**
+- File Chat（Cmd+I）：围绕选中文件/目录与 AI 对话
+- AI 自然语言搜索（工具栏 ✦ AI 按钮）
+- AI 批量操作（Cmd+Shift+A）
+- 支持 Claude / OpenAI / OpenRouter / 自定义 endpoint（MiniMax 等），Keychain 存 key，设置页可测连接
+
+## 构建 / 运行
+
+```bash
+# 完整构建（产出 build/Lumen.app）
+bash scripts/build-app.sh debug
+
+# 仅编译（不打包）
+swift build -c debug --product ForkLiftClone
+
+# 启动
+open build/Lumen.app
+```
+
+跑测试：
+
+```bash
+cd Packages/Core && swift test
+```
+
+> 注：某些沙盒环境下 SwiftPM 的 manifest 编译会被 sandbox-exec 拦截，加 `--disable-sandbox` 即可。
+
+**注意事项：**
+- Bundle ID 保持 `com.panglin.forkliftclone`（改了会丢 Keychain 里的 AI key）
+- 每次 ad-hoc 重签后 macOS 可能要重新授权 Desktop/Documents 访问，可用 `tccutil reset All com.panglin.forkliftclone` 一键重置
+- `swift build` 偶尔报 `build.db: disk I/O error`——非致命，可忽略
 
 ## 项目结构
 
 ```
-类forklift-项目/
-├── Package.swift                     ← 顶层 SwiftPM，executable target
-├── App/                              ← App 源码（path: "App"）
-│   ├── Info.plist
-│   ├── ForkLiftCloneApp.swift        @main + 命令菜单 + F5/F6 NSEvent
-│   ├── Services/
-│   │   ├── BookmarksStore.swift      Sidebar 收藏的 JSON 持久化
-│   │   └── ThemeStore.swift          主题切换 + UserDefaults
-│   ├── ViewModels/
-│   │   ├── PaneTabsViewModel.swift   单边的 Tab 容器
-│   │   └── PaneViewModel.swift       单 Tab 的状态
-│   └── Views/
-│       ├── MainWindowView.swift      NavigationSplitView + HSplitView + Inspector
-│       ├── PaneView.swift            TabBar + Toolbar + PathBar + Table + StatusBar
-│       ├── TabBarView.swift
-│       ├── PaneToolbarView.swift     后退/前进/上级/刷新/隐藏/搜索
-│       ├── PathBarView.swift
-│       ├── FileTableView.swift       Table + 右键菜单 + 拖拽 + QuickLook
-│       ├── StatusBarView.swift
-│       ├── TransferInspectorView.swift 队列侧栏
-│       ├── Sidebar/SidebarView.swift   收藏列表
-│       └── Settings/SettingsView.swift 主题切换面板
-├── Packages/Core/                    ← 内部 SwiftPM
-│   ├── Package.swift
-│   ├── Sources/
-│   │   ├── FileSystemKit/            FileItem / FileProvider / LocalFileProvider / DirectoryWatcher
-│   │   ├── TransferEngine/           TransferTask / ConflictResolver / TransferQueue
-│   │   ├── PreviewKit/               QuickLookView
-│   │   └── AppearanceKit/            AppearanceTheme + 三套主题
-│   └── Tests/                        15 个单测
-└── scripts/
-    └── build-app.sh                  一键构建 ForkLiftClone.app
+├── App/                          # 主 App target（SwiftUI 壳）
+│   ├── ForkLiftCloneApp.swift    # @main 入口，菜单与快捷键
+│   ├── Views/                    # 含 AI/（FileChatPanel 等）与 Settings/
+│   ├── ViewModels/               # PaneViewModel / PaneTabsViewModel
+│   └── Services/                 # ThemeStore / BookmarksStore / PaneStateStore
+├── Packages/Core/                # 内部 SwiftPM，5 个 library targets
+│   └── Sources/
+│       ├── FileSystemKit/        # FileProvider 协议 + LocalFileProvider + DirectoryWatcher
+│       ├── TransferEngine/       # 复制/移动队列，进度，冲突解决
+│       ├── PreviewKit/           # QuickLook 封装
+│       ├── AppearanceKit/        # 三套主题
+│       └── AIKit/                # ClaudeClient / KeychainStore / ChatSession / AIProvider
+├── scripts/build-app.sh          # swift build → 装配 .app → 拷 icon → ad-hoc 签名
+├── docs/                         # 协作协议与项目规范
+└── tasks/                        # 多 agent 任务队列（规则见 docs/COLLAB.md）
 ```
 
-## 日常使用
+## 待做（候选方向）
 
-### 跑 App
-
-一行命令构建并启动：
-
-```bash
-./scripts/build-app.sh
-open build/ForkLiftClone.app
-```
-
-或者开发期直接 `swift run`（启动会快一点，但没有完整 .app bundle 行为）：
-
-```bash
-swift run ForkLiftClone
-```
-
-### 跑测试
-
-```bash
-cd Packages/Core
-swift test
-```
-
-预期：15 个用例全绿（FileSystemKit 8 + TransferEngine 7）。
-
-### 在 Xcode 里开发
-
-直接用 Xcode 打开顶层 `Package.swift`：
-
-```bash
-open Package.swift
-```
-
-Xcode 会把这个 SwiftPM 当成一个项目，可以直接 Cmd+R / Cmd+U。不需要 `.xcodeproj`。
-
-### 装到 /Applications
-
-```bash
-./scripts/build-app.sh
-cp -R build/ForkLiftClone.app /Applications/
-```
-
-## 阶段 2 验收清单
-
-构建/测试已通过。下面是手动验证清单：
-
-- [ ] Sidebar 显示 5 个默认收藏（主目录/桌面/下载/文档/应用程序），点击跳转
-- [ ] Cmd+D 把当前目录加入收藏；右键 → 「从收藏中移除」
-- [ ] Cmd+T 在当前 Pane 复制一个 Tab；点 × 关闭；点 + 也能新建
-- [ ] PaneToolbar 搜索框输入关键字，列表实时过滤
-- [ ] 隐藏文件 toggle 切换显示 dot 文件
-- [ ] F5 把选中文件复制到对侧 Pane（看 Inspector 进度条）
-- [ ] F6 把选中文件移动到对侧
-- [ ] Cmd+[ / Cmd+] 走导航历史；Cmd+↑ 上级；Cmd+R 刷新
-- [ ] Cmd+Return 弹重命名对话框
-- [ ] 选中文件，从一个 Pane 拖到另一个 Pane → 走传输队列复制
-- [ ] 工具栏右上角的「传输」按钮切出 Inspector，能看到任务进度 + 清空已完成
-- [ ] Cmd+, 打开设置，切换三套主题，所有界面颜色/字号/圆角立刻变；重启后保留
-- [ ] 在 Finder 改一个目录里的文件，对应 Pane 自动刷新
-
-## 阶段 3（待做）
-
+- 传输冲突弹窗（覆盖 / 跳过 / 重命名 / 合并）
+- 归档（zip/tar）虚拟目录浏览
 - SFTP / S3 / WebDAV 远程协议
-- 归档（zip/tar）压缩 + 解压 + 虚拟目录浏览
-- 传输冲突弹窗（覆盖/跳过/重命名/合并）
 - 大文件并发分片传输
+- AI 功能打磨（端到端验证、错误处理、流式体验）
 
 ## 已知技术点
 
-- **Swift 6 actor 隔离**：`@MainActor` 类不能在 `deinit` 里访问自己的 isolated 属性。`PaneViewModel` 提供 `stopObserving()` 公开方法供 View 在 `.onDisappear` 调用。
-- **`swift build` 的 build.db SQLite 警告**：返回 exit 1 但产物正常。`build-app.sh` 用「检查产物存在」绕过。
-- **App Sandbox**：未启用（无 entitlements 文件），所以可以访问任意路径。后续若上架 MAS，再切到 Security-Scoped Bookmarks。
-- **Code signing**：ad-hoc 签名（`codesign --sign -`），自己用没问题。要分发给别人才需要 Developer ID 签名 + 公证。
+- **Swift 6 actor 隔离**：`@MainActor` 类不能在 `deinit` 里访问自己的 isolated 属性。`PaneViewModel` 提供 `stopObserving()` 供 View 在 `.onDisappear` 调用。
+- **App Sandbox**：未启用（无 entitlements），可访问任意路径。若上架 MAS 需切 Security-Scoped Bookmarks。
+- **Code signing**：ad-hoc 签名（`codesign --sign -`），自用没问题；分发需 Developer ID + 公证。
+- **NSSplitView autosave** 会偷偷收起窗格——`EqualHSplitView` 已处理，改动时留意。
