@@ -47,6 +47,9 @@ struct MainWindowView: View {
             SidebarView(store: bookmarks) { bookmark in
                 Task { await activeTabs().active.navigate(to: bookmark.providerPath) }
             }
+            // 列宽由 NavigationSplitView 托管——在 SidebarView 里手写
+            // .frame(maxWidth:) 会导致拖宽列时内容布局坍塌消失
+            .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 340)
         } detail: {
             detailPane
         }

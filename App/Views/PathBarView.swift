@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import FileSystemKit
 import AppearanceKit
 
@@ -10,6 +11,7 @@ struct PathBarView: View {
 
     @State private var isEditing = false
     @State private var editText  = ""
+    @State private var copied    = false   // 复制路径按钮的瞬时反馈
     @FocusState private var editFocused: Bool
 
     var body: some View {
@@ -22,7 +24,7 @@ struct PathBarView: View {
         }
         .frame(height: 28)
         .glassChrome(theme)
-        .background(isFocused ? theme.accent.opacity(0.10) : Color.clear)
+        .background(isFocused ? theme.accent.opacity(0.05) : Color.clear)
         // Sync edit text whenever the actual path changes externally.
         .onChange(of: path) { _, newPath in
             if isEditing { editText = newPath.displayString }
@@ -32,37 +34,62 @@ struct PathBarView: View {
     // MARK: - Breadcrumb view
 
     private var breadcrumb: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) {
-                PathSegment(
-                    label: "/",
-                    icon: "internaldrive",
-                    isLast: path.components.isEmpty,
-                    onTap: {
-                        onJump(ProviderPath(providerID: path.providerID, components: []))
-                    }
-                )
-                ForEach(Array(path.components.enumerated()), id: \.offset) { idx, comp in
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: theme.captionFontSize - 2, weight: .medium))
-                        .foregroundStyle(theme.secondaryText.opacity(0.5))
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
                     PathSegment(
-                        label: comp,
-                        icon: nil,
-                        isLast: idx == path.components.count - 1,
+                        label: "/",
+                        icon: "internaldrive",
+                        isLast: path.components.isEmpty,
                         onTap: {
-                            let newComponents = Array(path.components.prefix(idx + 1))
-                            onJump(ProviderPath(providerID: path.providerID,
-                                               components: newComponents))
+                            onJump(ProviderPath(providerID: path.providerID, components: []))
                         }
                     )
+                    ForEach(Array(path.components.enumerated()), id: \.offset) { idx, comp in
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: theme.captionFontSize - 2, weight: .medium))
+                            .foregroundStyle(theme.secondaryText.opacity(0.5))
+                        PathSegment(
+                            label: comp,
+                            icon: nil,
+                            isLast: idx == path.components.count - 1,
+                            onTap: {
+                                let newComponents = Array(path.components.prefix(idx + 1))
+                                onJump(ProviderPath(providerID: path.providerID,
+                                                   components: newComponents))
+                            }
+                        )
+                    }
+                    Spacer(minLength: 8)
                 }
-                Spacer(minLength: 8)
+                .padding(.horizontal, 10)
             }
-            .padding(.horizontal, 10)
+            // Double-click anywhere on the path bar to enter edit mode.
+            .onTapGesture(count: 2) { enterEditMode() }
+
+            copyPathButton
         }
-        // Double-click anywhere on the path bar to enter edit mode.
-        .onTapGesture(count: 2) { enterEditMode() }
+    }
+
+    // MARK: - Copy path button
+
+    private var copyPathButton: some View {
+        Button {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(path.displayString, forType: .string)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+        } label: {
+            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: theme.captionFontSize, weight: .medium))
+                .foregroundStyle(copied ? theme.accent : theme.secondaryText)
+                .frame(width: 24, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("复制当前路径到剪贴板")
+        .padding(.trailing, 8)
     }
 
     // MARK: - Edit field

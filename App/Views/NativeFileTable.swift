@@ -43,6 +43,9 @@ struct NativeFileTable: NSViewRepresentable {
     let onRenameRequestConsumed: () -> Void
     /// 所属窗格是否为焦点窗格——决定选中行用 accent 还是灰色（Finder 语义）。
     let isPaneFocused: Bool
+    /// 表格内任何 mouseDown（行/空白都算）——用于把焦点切到所属窗格。
+    /// 走 NSTableView 自身的 mouseDown 覆盖，不参与手势仲裁，零延迟。
+    let onTableInteraction: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -92,6 +95,7 @@ struct NativeFileTable: NSViewRepresentable {
         table.doubleAction = #selector(Coordinator.tableDoubleClicked(_:))
         table.keyDownHandler = { [weak coord] event in coord?.handleKeyDown(event) ?? false }
         table.menuProvider = { [weak coord] event in coord?.makeContextMenu(for: event) }
+        table.mouseDownHandler = { [weak coord] in coord?.parent.onTableInteraction() }
 
         // Drag SOURCE: manual initiation via mouseDragged override in ForkLiftTableView.
         // The NSDraggingSource conformance on ForkLiftTableView sets operation masks.
@@ -542,6 +546,8 @@ private final class ThemedRowView: NSTableRowView {
 final class ForkLiftTableView: NSTableView {
     var keyDownHandler: ((NSEvent) -> Bool)?
     var menuProvider:   ((NSEvent) -> NSMenu?)?
+    /// 任意 mouseDown 触发（行/空白区域都会），用于窗格焦点切换。
+    var mouseDownHandler: (() -> Void)?
 
     /// Preview URLs — set synchronously in `tableViewSelectionDidChange`
     /// so they are always current when Space is pressed.
@@ -560,6 +566,7 @@ final class ForkLiftTableView: NSTableView {
     override var acceptsFirstResponder: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
+        mouseDownHandler?()
         let pt            = convert(event.locationInWindow, from: nil)
         mouseDownRow      = row(at: pt)
         mouseDownPt       = pt

@@ -71,7 +71,8 @@ struct FileTableView: View {
                     // 延迟到下一 runloop 清状态，避免在 view update 中写 @Observable
                     DispatchQueue.main.async { vm.pendingRenameID = nil }
                 },
-                isPaneFocused: isPaneFocused
+                isPaneFocused: isPaneFocused,
+                onTableInteraction: onUserInteraction
             )
 
             stateOverlay

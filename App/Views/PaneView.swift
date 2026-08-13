@@ -20,7 +20,7 @@ struct PaneView: View {
                     .frame(height: isFocused ? 3 : 1)
                 if isFocused {
                     LinearGradient(
-                        colors: [theme.accent.opacity(0.22), Color.clear],
+                        colors: [theme.accent.opacity(0.10), Color.clear],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -60,7 +60,7 @@ struct PaneView: View {
         // 焦点窗格：accent 内描边，一眼看出当前操作的是哪一侧
         .overlay(
             Rectangle()
-                .strokeBorder(theme.accent.opacity(isFocused ? 0.45 : 0), lineWidth: 1.5)
+                .strokeBorder(theme.accent.opacity(isFocused ? 0.30 : 0), lineWidth: 1.5)
                 .allowsHitTesting(false)
         )
         .animation(.easeInOut(duration: 0.18), value: isFocused)

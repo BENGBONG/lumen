@@ -40,7 +40,7 @@ struct TabBarView: View {
         }
         .frame(height: 30)
         .glassChrome(theme)
-        .background(isFocused ? theme.accent.opacity(0.10) : Color.clear)
+        .background(isFocused ? theme.accent.opacity(0.06) : Color.clear)
     }
 }
 

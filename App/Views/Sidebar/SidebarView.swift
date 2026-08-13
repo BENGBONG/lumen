@@ -76,7 +76,8 @@ struct SidebarView: View {
             }
         }
         .glassChrome(theme)
-        .frame(minWidth: 180, idealWidth: 200, maxWidth: 280)
+        // 不写 .frame(min/maxWidth:)：宽度由 NavigationSplitView 列宽托管，
+        // 手写 maxWidth 会在用户拖宽侧栏时把内容挤出可视区（内容消失 bug）
         .dropDestination(for: URL.self, action: { urls, _ in
             for url in urls {
                 let name = url.lastPathComponent.isEmpty ? "/" : url.lastPathComponent
