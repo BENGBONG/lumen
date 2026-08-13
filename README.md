@@ -8,11 +8,13 @@ macOS 双窗格文件管理器，集成 AI 文件对话与自然语言操作。S
 - 双窗格 + 多标签（Cmd+T 复制标签）+ 导航历史（Cmd+[ / Cmd+]）
 - 拖拽移动/复制（含跨窗格 + Finder 互操作）
 - Cmd+C / Cmd+X / Cmd+V 剪贴板
-- F2 内联重命名
+- F2 内联重命名（编辑框落在列表行上，新建文件后自动进入）
 - 传输队列（覆盖式 overlay 面板），实时进度
 - 传输冲突弹窗（保留两者 / 覆盖 / 跳过 / 停止，支持"应用到所有冲突"）
 - QuickLook（Space）
 - 压缩 / 解压
+- **归档虚拟目录浏览**（zip / tar / tar.gz / tgz）：双击进入像文件夹一样浏览，条目可预览/拷出，内部只读
+- **新建文件**：txt / md / py / docx / xlsx / pptx（右键空白处或文件菜单；Office 模板运行时生成）
 - 路径栏直接输入
 - Sidebar 收藏（Cmd+D 添加，JSON 持久化）
 - 三套主题切换（macOS 原生 / 现代深色 / 轻量明亮），Cmd+, 设置
@@ -60,7 +62,8 @@ cd Packages/Core && swift test
 │   └── Services/                 # ThemeStore / BookmarksStore / PaneStateStore
 ├── Packages/Core/                # 内部 SwiftPM，5 个 library targets
 │   └── Sources/
-│       ├── FileSystemKit/        # FileProvider 协议 + LocalFileProvider + DirectoryWatcher
+│       ├── FileSystemKit/        # FileProvider 协议 + LocalFileProvider + RoutedFileProvider
+│       │                         # （归档虚拟目录路由）+ Zip/TarArchiveReader + 新建文件模板
 │       ├── TransferEngine/       # 复制/移动队列，进度，冲突解决
 │       ├── PreviewKit/           # QuickLook 封装
 │       ├── AppearanceKit/        # 三套主题
@@ -72,10 +75,11 @@ cd Packages/Core && swift test
 
 ## 待做（候选方向）
 
-- 归档（zip/tar）虚拟目录浏览
+- ~~归档（zip/tar）虚拟目录浏览~~ ✅ 已完成（zip / tar / tgz / tar.gz）
 - SFTP / S3 / WebDAV 远程协议
 - 大文件并发分片传输
 - 目录合并（冲突弹窗已预留 .merge，目前返回会报 mergeUnsupported）
+- 归档内写入（向 zip 追加/删除条目）
 - AI 功能打磨（端到端验证、错误处理、流式体验）
 
 ## 已知技术点
