@@ -85,16 +85,19 @@ final class LocalFileProviderTests: XCTestCase {
     }
 
     func testProviderPathRoundTrip() {
-        let original = URL(fileURLWithPath: "/Users/admin/Documents")
+        let original = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Documents")
         let path = provider.providerPath(for: original)
         XCTAssertEqual(provider.url(for: path).standardizedFileURL,
                        original.standardizedFileURL)
     }
 
     func testProviderPathParentAndAppend() {
-        let p = ProviderPath(providerID: "local", components: ["Users", "admin"])
-        XCTAssertEqual(p.appending("Documents").components, ["Users", "admin", "Documents"])
-        XCTAssertEqual(p.parent()?.components, ["Users"])
+        let home = NSHomeDirectory()
+        let comps = home.split(separator: "/").map(String.init)
+        let p = ProviderPath(providerID: "local", components: comps)
+        XCTAssertEqual(p.appending("Documents").components, comps + ["Documents"])
+        XCTAssertEqual(p.parent()?.components, Array(comps.dropLast()))
         XCTAssertNil(ProviderPath(providerID: "local", components: []).parent())
     }
 }
