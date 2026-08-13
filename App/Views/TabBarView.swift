@@ -39,8 +39,8 @@ struct TabBarView: View {
             .help("新建标签页 (⌘T)")
         }
         .frame(height: 30)
-        .background(theme.sidebarBackground)
-        .background(isFocused ? theme.accent.opacity(0.07) : Color.clear)
+        .glassChrome(theme)
+        .background(isFocused ? theme.accent.opacity(0.10) : Color.clear)
     }
 }
 

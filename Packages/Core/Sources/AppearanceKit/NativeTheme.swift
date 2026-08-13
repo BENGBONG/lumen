@@ -7,12 +7,13 @@ public struct NativeTheme: AppearanceTheme {
     public init() {}
 
     public var windowBackground: AnyShapeStyle { AnyShapeStyle(.windowBackground) }
-    public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
-    public var paneBackground: AnyShapeStyle { AnyShapeStyle(.background) }
+    public var sidebarBackground: AnyShapeStyle { AnyShapeStyle(.ultraThinMaterial) }
+    public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
 
-    public var rowSelected: Color { Color.accentColor.opacity(0.18) }
-    public var rowHover: Color { Color.primary.opacity(0.04) }
-    public var separator: Color { Color.primary.opacity(0.08) }
+    public var rowSelected: Color { Color.accentColor.opacity(0.22) }
+    public var rowSelectedInactive: Color { Color.primary.opacity(0.10) }
+    public var rowHover: Color { Color.primary.opacity(0.05) }
+    public var separator: Color { Color.primary.opacity(0.09) }
 
     public var primaryText: Color { .primary }
     public var secondaryText: Color { .secondary }

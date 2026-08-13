@@ -9,16 +9,20 @@ public struct ModernDarkTheme: AppearanceTheme {
     public var windowBackground: AnyShapeStyle {
         AnyShapeStyle(Color(red: 0.055, green: 0.067, blue: 0.086))
     }
+    // 玻璃材质 + 深蓝染色叠层（chromeTint / paneTint 在视图中叠加）
     public var sidebarBackground: AnyShapeStyle {
-        AnyShapeStyle(Color(red: 0.094, green: 0.106, blue: 0.133))
+        AnyShapeStyle(.ultraThinMaterial)
     }
     public var paneBackground: AnyShapeStyle {
-        AnyShapeStyle(Color(red: 0.071, green: 0.082, blue: 0.106))
+        AnyShapeStyle(.thinMaterial)
     }
+    public var chromeTint: Color { Color(red: 0.094, green: 0.106, blue: 0.133).opacity(0.72) }
+    public var paneTint: Color { Color(red: 0.071, green: 0.082, blue: 0.106).opacity(0.78) }
 
-    public var rowSelected: Color { Color(red: 0.227, green: 0.357, blue: 0.706).opacity(0.32) }
-    public var rowHover: Color { Color.white.opacity(0.05) }
-    public var separator: Color { Color.white.opacity(0.08) }
+    public var rowSelected: Color { Color(red: 0.227, green: 0.357, blue: 0.706).opacity(0.38) }
+    public var rowSelectedInactive: Color { Color.white.opacity(0.10) }
+    public var rowHover: Color { Color.white.opacity(0.06) }
+    public var separator: Color { Color.white.opacity(0.09) }
 
     public var primaryText: Color { Color.white.opacity(0.94) }
     public var secondaryText: Color { Color.white.opacity(0.58) }

@@ -21,8 +21,8 @@ struct PathBarView: View {
             }
         }
         .frame(height: 28)
-        .background(theme.sidebarBackground)
-        .background(isFocused ? theme.accent.opacity(0.07) : Color.clear)
+        .glassChrome(theme)
+        .background(isFocused ? theme.accent.opacity(0.10) : Color.clear)
         // Sync edit text whenever the actual path changes externally.
         .onChange(of: path) { _, newPath in
             if isEditing { editText = newPath.displayString }

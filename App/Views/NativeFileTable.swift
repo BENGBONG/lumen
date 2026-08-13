@@ -41,6 +41,8 @@ struct NativeFileTable: NSViewRepresentable {
     /// 消费后通过 onRenameRequestConsumed 通知清除。
     let renameRequestID: FileItem.ID?
     let onRenameRequestConsumed: () -> Void
+    /// 所属窗格是否为焦点窗格——决定选中行用 accent 还是灰色（Finder 语义）。
+    let isPaneFocused: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -55,6 +57,7 @@ struct NativeFileTable: NSViewRepresentable {
         table.intercellSpacing = NSSize(width: 8, height: 4)
         table.gridStyleMask = []
         table.headerView = NSTableHeaderView()
+        table.selectionHighlightStyle = .regular   // 自定义 ThemedRowView 绘制
 
         // Columns -----------------------------------------------------------
         let nameCol = NSTableColumn(identifier: .init("name"))
@@ -119,6 +122,9 @@ struct NativeFileTable: NSViewRepresentable {
 
         // Initial data
         coord.items = items
+        // 自愈：首次布局可能与数据装配存在时序竞争（标签页切换/重建后
+        // 曾出现"有数据但零行"），下一 runloop 兜底 reload 一次。
+        DispatchQueue.main.async { [weak table] in table?.reloadData() }
         return scroll
     }
 
@@ -133,7 +139,14 @@ struct NativeFileTable: NSViewRepresentable {
         let newIDs = items.map(\.id)
         let itemsChanged = oldIDs != newIDs
         coord.items = items
-        if itemsChanged { table.reloadData() }
+        // numberOfRows 对账：任何遗漏的 reload 都在此自愈（防空白表格）
+        if itemsChanged || table.numberOfRows != items.count { table.reloadData() }
+
+        // 焦点变化 → 行选中色 accent/灰 切换，需要重建 row views
+        if coord.lastIsPaneFocused != isPaneFocused {
+            coord.lastIsPaneFocused = isPaneFocused
+            table.reloadData()
+        }
 
         // Sync sort indicator (avoid retriggering the sortDescriptorsDidChange
         // delegate by suppressing during the assignment).
@@ -177,6 +190,7 @@ struct NativeFileTable: NSViewRepresentable {
         var items: [FileItem] = []
         var suppressSelectionFeedback = false
         var suppressSortFeedback = false
+        var lastIsPaneFocused: Bool
         weak var tableView: NSTableView?
 
         // Inline rename state
@@ -192,11 +206,21 @@ struct NativeFileTable: NSViewRepresentable {
 
         init(parent: NativeFileTable) {
             self.parent = parent
+            self.lastIsPaneFocused = parent.isPaneFocused
         }
 
         // MARK: NSTableViewDataSource
 
         func numberOfRows(in tableView: NSTableView) -> Int { items.count }
+
+        /// 自定义行视图：焦点窗格选中行用 accent，非焦点用灰（Finder 语义）。
+        func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+            let rowView = ThemedRowView()
+            rowView.fillColor = NSColor(parent.isPaneFocused
+                                        ? parent.theme.rowSelected
+                                        : parent.theme.rowSelectedInactive)
+            return rowView
+        }
 
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
             guard !suppressSortFeedback,
@@ -499,6 +523,17 @@ struct NativeFileTable: NSViewRepresentable {
 }
 
 // MARK: - Custom NSTableView
+
+/// 主题化行视图：自绘选中背景（圆角横条），颜色由焦点状态决定。
+private final class ThemedRowView: NSTableRowView {
+    var fillColor: NSColor = .clear
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        let rect = bounds.insetBy(dx: 4, dy: 1)
+        fillColor.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
+    }
+}
 
 /// NSTableView subclass that also acts as the primary QLPreviewPanel
 /// controller.  Because it is the first responder after any row click,

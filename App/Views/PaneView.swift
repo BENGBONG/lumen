@@ -47,6 +47,7 @@ struct PaneView: View {
             Divider()
             FileTableView(
                 vm: tabs.active,
+                isPaneFocused: isFocused,
                 onOpenInNewTab: { path in tabs.newTab(at: path) },
                 onDropFiles: { urls, destPath, isMove in onDropFiles(urls, destPath, isMove) },
                 onUserInteraction: onFocus
@@ -55,7 +56,14 @@ struct PaneView: View {
             Divider()
             StatusBarView(vm: tabs.active)
         }
-        .background(theme.paneBackground)
+        .glassPane(theme)
+        // 焦点窗格：accent 内描边，一眼看出当前操作的是哪一侧
+        .overlay(
+            Rectangle()
+                .strokeBorder(theme.accent.opacity(isFocused ? 0.45 : 0), lineWidth: 1.5)
+                .allowsHitTesting(false)
+        )
+        .animation(.easeInOut(duration: 0.18), value: isFocused)
         .frame(minWidth: 360)
         // Deliberately NOT putting any gesture on the whole pane: any gesture
         // recognizer above the Table participates in AppKit's gesture

@@ -12,6 +12,13 @@ public protocol AppearanceTheme: Sendable {
     var rowHover: Color { get }
     var separator: Color { get }
 
+    /// 非焦点窗格里已选中行的颜色（Finder 语义：失焦变灰）。
+    var rowSelectedInactive: Color { get }
+    /// 叠加在镀铬层（侧栏/工具栏/标签栏等材质背景）之上的染色，默认无色。
+    var chromeTint: Color { get }
+    /// 叠加在表格区材质背景之上的染色，默认无色。
+    var paneTint: Color { get }
+
     var primaryText: Color { get }
     var secondaryText: Color { get }
     var accent: Color { get }
@@ -20,6 +27,12 @@ public protocol AppearanceTheme: Sendable {
     var cornerRadius: CGFloat { get }
     var bodyFontSize: CGFloat { get }
     var captionFontSize: CGFloat { get }
+}
+
+public extension AppearanceTheme {
+    var rowSelectedInactive: Color { Color.gray.opacity(0.18) }
+    var chromeTint: Color { .clear }
+    var paneTint: Color { .clear }
 }
 
 public struct AppearanceThemeKey: EnvironmentKey {

@@ -10,12 +10,15 @@ public struct LightTheme: AppearanceTheme {
         AnyShapeStyle(Color(red: 0.992, green: 0.992, blue: 0.992))
     }
     public var sidebarBackground: AnyShapeStyle {
-        AnyShapeStyle(Color(red: 0.965, green: 0.967, blue: 0.972))
+        AnyShapeStyle(.ultraThinMaterial)
     }
-    public var paneBackground: AnyShapeStyle { AnyShapeStyle(Color.white) }
+    public var paneBackground: AnyShapeStyle { AnyShapeStyle(.thinMaterial) }
+    public var chromeTint: Color { Color(red: 0.965, green: 0.967, blue: 0.972).opacity(0.65) }
+    public var paneTint: Color { Color.white.opacity(0.72) }
 
-    public var rowSelected: Color { Color(red: 0.882, green: 0.918, blue: 0.984) }
-    public var rowHover: Color { Color(red: 0.949, green: 0.953, blue: 0.961) }
+    public var rowSelected: Color { Color(red: 0.247, green: 0.439, blue: 0.937).opacity(0.20) }
+    public var rowSelectedInactive: Color { Color(red: 0.45, green: 0.47, blue: 0.50).opacity(0.16) }
+    public var rowHover: Color { Color(red: 0.949, green: 0.953, blue: 0.961).opacity(0.8) }
     public var separator: Color { Color(red: 0.882, green: 0.886, blue: 0.898) }
 
     public var primaryText: Color { Color(red: 0.114, green: 0.122, blue: 0.149) }

@@ -30,7 +30,7 @@ struct FileChatPanel: View {
                 inputBar
             }
         }
-        .background(theme.paneBackground)
+        .glassPane(theme)
         .task(id: contextFiles.map(\.path).joined()) {
             // Refresh cached Keychain presence + reset session for new file set
             hasAPIKey = KeychainStore.hasKey(for: .current)
@@ -71,7 +71,7 @@ struct FileChatPanel: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .background(theme.sidebarBackground)
+        .glassChrome(theme)
     }
 
     // MARK: - File chips

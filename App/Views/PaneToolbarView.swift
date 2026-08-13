@@ -107,8 +107,8 @@ struct PaneToolbarView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(theme.sidebarBackground)
-        .background(isActive ? theme.accent.opacity(0.07) : Color.clear)
+        .glassChrome(theme)
+        .background(isActive ? theme.accent.opacity(0.10) : Color.clear)
         .onAppear { localQuery = vm.searchQuery }
         .onChange(of: vm.id) { _, _ in
             localQuery  = vm.searchQuery

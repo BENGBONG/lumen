@@ -75,7 +75,7 @@ struct SidebarView: View {
                 }
             }
         }
-        .background(theme.sidebarBackground)
+        .glassChrome(theme)
         .frame(minWidth: 180, idealWidth: 200, maxWidth: 280)
         .dropDestination(for: URL.self, action: { urls, _ in
             for url in urls {

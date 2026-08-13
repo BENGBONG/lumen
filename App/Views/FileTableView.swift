@@ -7,6 +7,8 @@ import AIKit
 
 struct FileTableView: View {
     @Bindable var vm: PaneViewModel
+    /// 所属窗格是否为焦点窗格（透传给表格决定选中行颜色）。
+    var isPaneFocused: Bool = false
     let onOpenInNewTab: (ProviderPath) -> Void
     let onDropFiles: ([URL], ProviderPath, Bool) -> Void   // (urls, destination, isMove)
     let onUserInteraction: () -> Void
@@ -68,7 +70,8 @@ struct FileTableView: View {
                 onRenameRequestConsumed: {
                     // 延迟到下一 runloop 清状态，避免在 view update 中写 @Observable
                     DispatchQueue.main.async { vm.pendingRenameID = nil }
-                }
+                },
+                isPaneFocused: isPaneFocused
             )
 
             stateOverlay

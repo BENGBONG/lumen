@@ -53,7 +53,7 @@ struct AIBatchCommandBar: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(theme.sidebarBackground)
+            .glassChrome(theme)
 
             if let err = errorText {
                 Divider()
@@ -69,7 +69,7 @@ struct AIBatchCommandBar: View {
                 planPreview(plan)
             }
         }
-        .background(theme.paneBackground)
+        .glassPane(theme)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 4)
         .onAppear { focused = true }

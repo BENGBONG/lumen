@@ -47,7 +47,7 @@ struct StatusBarView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .frame(height: 22)
-        .background(theme.sidebarBackground)
+        .glassChrome(theme)
     }
 
     private var countLabel: some View {

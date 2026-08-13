@@ -17,7 +17,7 @@ struct TransferInspectorView: View {
                 taskList
             }
         }
-        .background(theme.paneBackground)
+        .glassPane(theme)
     }
 
     // MARK: - Header
@@ -111,7 +111,7 @@ struct TransferInspectorView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(theme.sidebarBackground)
+        .glassChrome(theme)
     }
 
     // MARK: - Empty state
