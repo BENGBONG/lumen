@@ -19,7 +19,9 @@ struct MainWindowView: View {
     enum PaneSide { case left, right }
 
     init() {
-        let provider = LocalFileProvider()
+        // RoutedFileProvider：对外仍是本地路径语义，但路径穿过 .zip 时
+        // 自动切换为归档虚拟目录（双击进入浏览、条目可拷出、内部只读）。
+        let provider = RoutedFileProvider()
         let home = FileManager.default.homeDirectoryForCurrentUser
         let snapshot = PaneStateStore.load()
         let leftURL = snapshot
@@ -65,6 +67,11 @@ struct MainWindowView: View {
             let isCut = note.userInfo?["isCut"] as? Bool ?? false
             let dest  = activeTabs().active.currentPath
             handleDrop(urls: urls, destination: dest, kind: isCut ? .move : .copy)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flNewFile)) { note in
+            guard let raw = note.userInfo?["template"] as? String,
+                  let template = NewFileTemplate(rawValue: raw) else { return }
+            Task { await newFileInActive(template) }
         }
         .modifier(NotificationListeners(listeners: notificationListeners))
         .sheet(item: $renameTarget) { item in
@@ -243,6 +250,34 @@ struct MainWindowView: View {
         let target = pane.currentPath.appending(name)
         try? await pane.provider.mkdir(target)
         await pane.reload()
+    }
+
+    /// 新建文件：模板生成内容 → 唯一命名 → 落盘 → 选中并直接进入重命名。
+    private func newFileInActive(_ template: NewFileTemplate) async {
+        let pane = activeTabs().active
+        let existing = Set(pane.items.map(\.name))
+        let stem = template.defaultStem
+        let ext  = template.fileExtension
+        var name = "\(stem).\(ext)"
+        if existing.contains(name) {
+            var i = 2
+            while existing.contains("\(stem) \(i).\(ext)") { i += 1 }
+            name = "\(stem) \(i).\(ext)"
+        }
+        do {
+            try await pane.provider.createFile(pane.currentPath.appending(name),
+                                               contents: template.makeData())
+        } catch {
+            pane.errorMessage = error.localizedDescription
+            return
+        }
+        await pane.reload()
+        // 选中新文件并弹出重命名 sheet（复用 .flRename 的链路）
+        if let item = pane.items.first(where: { $0.name == name }) {
+            pane.selection = [item.id]
+            renameInput = name
+            renameTarget = item
+        }
     }
 
     private func handleDrop(urls: [URL], destination: ProviderPath, kind: TransferKind = .copy) {

@@ -127,41 +127,62 @@ struct FileTableView: View {
     // MARK: - Context menu (built lazily by NativeFileTable on right-click)
 
     private func buildContextMenu(items targetItems: [FileItem]) -> NSMenu? {
+        let insideArchive = (vm.provider as? RoutedFileProvider)?
+            .isInsideArchive(vm.currentPath) ?? false
+
         let menu = NSMenu()
         if targetItems.isEmpty {
+            // 归档内部是只读虚拟目录，空白处不提供任何创建/管理操作
+            if insideArchive { return nil }
             menu.addItem(item("新建文件夹", #selector(MenuActions.mkdir)))
+            let newFileMenu = NSMenu()
+            for template in NewFileTemplate.allCases {
+                let mi = NSMenuItem(title: template.displayName,
+                                    action: #selector(MenuActions.newFile(_:)),
+                                    keyEquivalent: "")
+                mi.representedObject = template.rawValue
+                newFileMenu.addItem(mi)
+            }
+            let newFileItem = NSMenuItem(title: "新建文件", action: nil, keyEquivalent: "")
+            newFileItem.submenu = newFileMenu
+            menu.addItem(newFileItem)
             menu.addItem(item("用 Finder 显示当前目录", #selector(MenuActions.revealCurrentDir)))
         } else {
             menu.addItem(item("打开", #selector(MenuActions.openSelected)))
             let openInTab = item("在新标签页打开", #selector(MenuActions.openInNewTab))
             openInTab.isEnabled = targetItems.contains(where: { $0.isDirectory })
             menu.addItem(openInTab)
-            menu.addItem(item("用 Finder 显示", #selector(MenuActions.revealSelected)))
-            menu.addItem(.separator())
-            menu.addItem(item("复制路径", #selector(MenuActions.copyPaths)))
-            menu.addItem(item("重命名…", #selector(MenuActions.rename)))
-            menu.addItem(.separator())
-            menu.addItem(item("压缩为 ZIP", #selector(MenuActions.compressToZip)))
-            // "解压到此处" only appears when a single archive file is selected.
-            let archiveExts: Set<String> = ["zip", "tar", "gz", "bz2", "tgz", "7z", "rar"]
-            if targetItems.count == 1,
-               let ext = targetItems[0].name.split(separator: ".").last.map(String.init)?.lowercased(),
-               archiveExts.contains(ext) {
-                menu.addItem(item("解压到此处", #selector(MenuActions.extractHere)))
+            if !insideArchive {
+                menu.addItem(item("用 Finder 显示", #selector(MenuActions.revealSelected)))
             }
             menu.addItem(.separator())
-            let trash = item("移到废纸篓", #selector(MenuActions.trash))
-            trash.attributedTitle = NSAttributedString(
-                string: "移到废纸篓",
-                attributes: [.foregroundColor: NSColor.systemRed]
-            )
-            menu.addItem(trash)
+            menu.addItem(item("复制路径", #selector(MenuActions.copyPaths)))
+            if !insideArchive {
+                menu.addItem(item("重命名…", #selector(MenuActions.rename)))
+                menu.addItem(.separator())
+                menu.addItem(item("压缩为 ZIP", #selector(MenuActions.compressToZip)))
+                // "解压到此处" only appears when a single archive file is selected.
+                let archiveExts: Set<String> = ["zip", "tar", "gz", "bz2", "tgz", "7z", "rar"]
+                if targetItems.count == 1,
+                   let ext = targetItems[0].name.split(separator: ".").last.map(String.init)?.lowercased(),
+                   archiveExts.contains(ext) {
+                    menu.addItem(item("解压到此处", #selector(MenuActions.extractHere)))
+                }
+                menu.addItem(.separator())
+                let trash = item("移到废纸篓", #selector(MenuActions.trash))
+                trash.attributedTitle = NSAttributedString(
+                    string: "移到废纸篓",
+                    attributes: [.foregroundColor: NSColor.systemRed]
+                )
+                menu.addItem(trash)
+            }
         }
         // Bind the closures into MenuActions object via representedObject
         let actions = MenuActions(
             items: targetItems,
             currentPath: vm.currentPath,
             provider: vm.provider,
+            insideArchive: insideArchive,
             openOne: { self.openOne($0) },
             openInTabFor: { self.onOpenInNewTab($0) },
             reload: { Task { await vm.reload() } }
@@ -169,6 +190,13 @@ struct FileTableView: View {
         for menuItem in menu.items where menuItem.action != nil {
             menuItem.target = actions
             menuItem.representedObject = actions
+        }
+        // 子菜单项不进上面的循环：单独挂 target（它们的 representedObject
+        // 已被占用为模板类型标识）
+        if let newFileMenu = menu.items.first(where: { $0.submenu != nil })?.submenu {
+            for mi in newFileMenu.items where mi.action != nil {
+                mi.target = actions
+            }
         }
         // Keep the actions alive for the menu's lifetime via associated object on the menu.
         objc_setAssociatedObject(menu, &MenuActions.assocKey, actions, .OBJC_ASSOCIATION_RETAIN)
@@ -183,6 +211,9 @@ struct FileTableView: View {
 
     private func openOne(_ item: FileItem) {
         if item.isDirectory && !item.isPackage {
+            Task { await vm.navigate(to: vm.currentPath.appending(item.name)) }
+        } else if (item.name as NSString).pathExtension.lowercased() == "zip" {
+            // 双击 zip：进入归档虚拟目录浏览（RoutedFileProvider 透明接管）
             Task { await vm.navigate(to: vm.currentPath.appending(item.name)) }
         } else {
             NSWorkspace.shared.open(item.url)
@@ -209,6 +240,7 @@ final class MenuActions: NSObject {
     let items: [FileItem]
     let currentPath: ProviderPath
     let provider: any FileProvider
+    let insideArchive: Bool
     let openOne: (FileItem) -> Void
     let openInTabFor: (ProviderPath) -> Void
     let reload: () -> Void
@@ -216,12 +248,14 @@ final class MenuActions: NSObject {
     init(items: [FileItem],
          currentPath: ProviderPath,
          provider: any FileProvider,
+         insideArchive: Bool,
          openOne: @escaping (FileItem) -> Void,
          openInTabFor: @escaping (ProviderPath) -> Void,
          reload: @escaping () -> Void) {
         self.items = items
         self.currentPath = currentPath
         self.provider = provider
+        self.insideArchive = insideArchive
         self.openOne = openOne
         self.openInTabFor = openInTabFor
         self.reload = reload
@@ -251,10 +285,18 @@ final class MenuActions: NSObject {
     }
 
     @objc func copyPaths() {
-        let paths = items.map(\.url.path)
+        // 归档内部条目复制虚拟路径（FileItem.id 就是虚拟路径字符串），
+        // 本地文件复制真实路径
+        let paths = insideArchive ? items.map(\.id) : items.map(\.url.path)
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(paths.joined(separator: "\n"), forType: .string)
+    }
+
+    @objc func newFile(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String else { return }
+        NotificationCenter.default.post(name: .flNewFile, object: nil,
+                                        userInfo: ["template": raw])
     }
 
     @objc func rename() {

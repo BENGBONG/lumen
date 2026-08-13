@@ -41,6 +41,8 @@ public protocol FileProvider: Sendable {
     func copy(_ src: ProviderPath, to dst: ProviderPath, progress: ((Double) -> Void)?) async throws
     func delete(_ path: ProviderPath, toTrash: Bool) async throws
     func mkdir(_ path: ProviderPath) async throws
+    /// 在指定路径创建文件并写入初始内容（用于「新建文件」模板）。
+    func createFile(_ path: ProviderPath, contents: Data) async throws
     func rename(_ path: ProviderPath, to newName: String) async throws
     func observe(_ path: ProviderPath) -> AsyncStream<FileSystemEvent>
 }
@@ -50,6 +52,10 @@ public extension FileProvider {
     /// 默认实现返回 nil（不支持元数据查询的 provider 视为"目标不存在"，
     /// 冲突检测自动跳过，行为与接入前一致）。
     func item(at path: ProviderPath) async -> FileItem? { nil }
+    /// 默认不支持创建文件。
+    func createFile(_ path: ProviderPath, contents: Data) async throws {
+        throw CocoaError(.fileWriteUnsupportedScheme)
+    }
     func observe(_ path: ProviderPath) -> AsyncStream<FileSystemEvent> {
         AsyncStream { $0.finish() }
     }

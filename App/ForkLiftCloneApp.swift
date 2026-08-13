@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import AppearanceKit
+import FileSystemKit
 
 @main
 struct ForkLiftCloneApp: App {
@@ -69,6 +70,16 @@ struct FileCommands: Commands {
                 NotificationCenter.default.post(name: .flNewTab, object: nil)
             }
             .keyboardShortcut("t", modifiers: [.command])
+
+            Menu("新建文件") {
+                ForEach(NewFileTemplate.allCases, id: \.rawValue) { template in
+                    Button(template.displayName) {
+                        NotificationCenter.default.post(
+                            name: .flNewFile, object: nil,
+                            userInfo: ["template": template.rawValue])
+                    }
+                }
+            }
         }
         CommandMenu("导航") {
             Button("后退") {
@@ -170,4 +181,7 @@ extension Notification.Name {
     static let flPasteFiles  = Notification.Name("flPasteFiles")
     /// Open the AI batch-operations command bar for the active pane.
     static let flAIBatch     = Notification.Name("flAIBatch")
+    /// Create a new file from a template in the active pane.
+    /// userInfo: ["template": String]（NewFileTemplate.rawValue）
+    static let flNewFile     = Notification.Name("flNewFile")
 }

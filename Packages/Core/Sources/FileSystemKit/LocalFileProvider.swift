@@ -155,6 +155,14 @@ public final class LocalFileProvider: FileProvider, @unchecked Sendable {
         try fm.createDirectory(at: url(for: path), withIntermediateDirectories: false)
     }
 
+    public func createFile(_ path: ProviderPath, contents: Data) async throws {
+        let target = url(for: path)
+        guard !fm.fileExists(atPath: target.path) else {
+            throw CocoaError(.fileWriteFileExists)
+        }
+        try contents.write(to: target, options: .atomic)
+    }
+
     public func rename(_ path: ProviderPath, to newName: String) async throws {
         let src = url(for: path)
         let dst = src.deletingLastPathComponent().appendingPathComponent(newName)
