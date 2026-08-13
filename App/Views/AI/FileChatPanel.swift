@@ -57,6 +57,8 @@ struct FileChatPanel: View {
                         .foregroundStyle(theme.secondaryText)
                 }
                 .buttonStyle(.plain)
+                .disabled(session.isLoading)   // 流式中禁止清空（防越界 & 状态错乱）
+                .opacity(session.isLoading ? 0.4 : 1)
                 .help("清空对话")
             }
             Button { withAnimation(.easeInOut(duration: 0.22)) { isPresented = false } } label: {

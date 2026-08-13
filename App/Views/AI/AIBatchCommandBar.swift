@@ -1,7 +1,9 @@
 import SwiftUI
+import AppKit
 import AppearanceKit
 import AIKit
 import FileSystemKit
+import TransferEngine
 
 /// A floating command bar that lets the user describe a batch operation in
 /// natural language.  AI returns a structured plan; the user previews and
@@ -195,20 +197,53 @@ struct AIBatchCommandBar: View {
     private func execute(_ plan: BatchPlan) {
         withAnimation { isPresented = false }
         Task {
+            var failures: [String] = []
+            var undoOps: [UndoOp] = []
             for op in plan.operations {
                 switch op.type {
                 case "rename":
                     guard let dest = op.destination, !dest.isEmpty else { continue }
                     let src = currentPath.appending(op.source)
-                    try? await provider.rename(src, to: dest)
+                    do {
+                        try await provider.rename(src, to: dest)
+                        // 重命名可撤回：登记逆操作（新路径移回旧路径）
+                        undoOps.append(.moveBack(from: currentPath.appending(dest), to: src))
+                    } catch {
+                        failures.append("\(op.source): \(error.localizedDescription)")
+                    }
                 case "delete":
+                    // 删除走废纸篓（可手动找回），但不进撤回栈
                     let src = currentPath.appending(op.source)
-                    try? await provider.delete(src, toTrash: true)
+                    do {
+                        try await provider.delete(src, toTrash: true)
+                    } catch {
+                        failures.append("\(op.source): \(error.localizedDescription)")
+                    }
                 default:
                     break
                 }
             }
             await MainActor.run { onReload() }
+
+            // 重命名批次登记进全局撤回栈（Cmd+Z 可整体撤回）
+            if !undoOps.isEmpty {
+                let batch = UndoableBatch(
+                    label: "AI 批量重命名 \(undoOps.count) 项",
+                    ops: undoOps
+                )
+                NotificationCenter.default.post(name: .flRecordUndo, object: nil,
+                                                userInfo: ["batch": batch])
+            }
+            // 失败不再静默：弹窗列出
+            if !failures.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "部分操作未成功"
+                alert.informativeText = failures.prefix(10).joined(separator: "\n")
+                    + (failures.count > 10 ? "\n… 共 \(failures.count) 项失败" : "")
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "好")
+                alert.runModal()
+            }
         }
     }
 

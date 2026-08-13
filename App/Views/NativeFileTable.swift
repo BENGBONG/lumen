@@ -376,17 +376,48 @@ struct NativeFileTable: NSViewRepresentable {
 
         // Keyboard -------------------------------------------------------------
 
-        func handleKeyDown(_ event: NSEvent) -> Bool {
-            // F2 — start inline rename for the focused row.
-            if event.specialKey == .f2 {
-                guard let table = tableView else { return true }
-                let row = table.selectedRow
-                if row >= 0 { startRename(row: row) }
-                return true
-            }
+        // Type-to-select 缓冲（1 秒内连续输入累积成前缀）
+        private var typeBuffer = ""
+        private var typeResetTask: Task<Void, Never>?
 
+        /// 累积输入字符并选中第一个前缀匹配的行。返回是否命中。
+        private func typeSelect(matching char: String) -> Bool {
+            guard let table = tableView, !items.isEmpty else { return false }
+            typeResetTask?.cancel()
+            typeResetTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                self?.typeBuffer = ""
+            }
+            let lower = char.lowercased()
+            let candidate = typeBuffer + lower
+            // 先按累积缓冲匹配；失配则回退到单字符重新起跳（Finder 行为）
+            for query in [candidate, lower] {
+                if let row = items.firstIndex(where: {
+                    $0.name.lowercased().hasPrefix(query)
+                }) {
+                    typeBuffer = query
+                    table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                    table.scrollRowToVisible(row)
+                    return true
+                }
+            }
+            typeBuffer = ""
+            return false
+        }
+
+        func handleKeyDown(_ event: NSEvent) -> Bool {
             guard let chars = event.charactersIgnoringModifiers, chars.count == 1 else { return false }
             let scalar = chars.unicodeScalars.first!.value
+
+            // Type-to-select：无修饰键的可打印字符 → 按名称前缀跳选（Finder 基础能力）。
+            // 空格（QuickLook）、Backspace（上级）、Escape 等控制键不进跳选。
+            if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+               scalar > 0x20, scalar != 0x7F, scalar != 0x1B,
+               !(scalar >= 0xF700 && scalar <= 0xF8FF),   // 功能键区
+               typeSelect(matching: chars) {
+                return true
+            }
 
             // Read selection from the live NSTableView — the SwiftUI binding
             // may be one runloop tick behind because we dispatch its update

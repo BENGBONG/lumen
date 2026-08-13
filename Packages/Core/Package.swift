@@ -19,5 +19,6 @@ let package = Package(
         .target(name: "AIKit",          dependencies: ["FileSystemKit"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit"]),
         .testTarget(name: "TransferEngineTests", dependencies: ["TransferEngine", "FileSystemKit"]),
+        .testTarget(name: "AIKitTests", dependencies: ["AIKit", "FileSystemKit"]),
     ]
 )

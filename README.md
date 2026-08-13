@@ -11,6 +11,8 @@ macOS 双窗格文件管理器，集成 AI 文件对话与自然语言操作。S
 - F2 内联重命名（编辑框落在列表行上，新建文件后自动进入）
 - 传输队列（覆盖式 overlay 面板），实时进度
 - 传输冲突弹窗（保留两者 / 覆盖 / 跳过 / 停止，支持"应用到所有冲突"）
+- **Cmd+Z 撤回**（复制/移动按批次撤回；副本进废纸篓可找回）
+- Cmd+Backspace 移到废纸篓；type-to-select 字母跳选
 - QuickLook（Space）
 - 压缩 / 解压
 - **归档虚拟目录浏览**（zip / tar / tar.gz / tgz）：双击进入像文件夹一样浏览，条目可预览/拷出，内部只读
@@ -21,9 +23,9 @@ macOS 双窗格文件管理器，集成 AI 文件对话与自然语言操作。S
 - DirectoryWatcher：Finder 改动后对应 Pane 自动刷新
 
 **AI 功能：**
-- File Chat（Cmd+I）：围绕选中文件/目录与 AI 对话
+- File Chat（Cmd+I）：围绕选中文件/目录与 AI 对话，**支持读取 docx/xlsx/pptx 正文**，图片自动缩放省 token
 - AI 自然语言搜索（工具栏 ✦ AI 按钮）
-- AI 批量操作（Cmd+Shift+A）
+- AI 批量操作（Cmd+Shift+A）：方案预览确认后执行，失败弹窗报告，重命名可 Cmd+Z 撤回
 - 支持 Claude / OpenAI / OpenRouter / 自定义 endpoint（MiniMax 等），Keychain 存 key，设置页可测连接
 
 ## 构建 / 运行

@@ -73,11 +73,17 @@ public final class ChatSession {
                 onChunk: { [weak self] chunk in
                     await MainActor.run { [weak self] in
                         guard let self else { return }
+                        // 流式中途用户可能清空对话/切换文件——messages 已被
+                        // clear() 重置，直接按下标写会越界崩溃
+                        guard self.messages.indices.contains(assistantIdx) else { return }
                         self.messages[assistantIdx].text += chunk
                     }
                 }
             )
-            messages[assistantIdx].isStreaming = false
+            // 同上：clear() 后这里也可能越界
+            if messages.indices.contains(assistantIdx) {
+                messages[assistantIdx].isStreaming = false
+            }
         } catch {
             if messages.last?.role == .assistant, messages.last?.text.isEmpty == true {
                 messages.removeLast()

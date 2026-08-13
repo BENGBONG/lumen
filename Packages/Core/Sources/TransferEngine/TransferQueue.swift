@@ -13,6 +13,11 @@ public enum UndoOp: Sendable {
 public struct UndoableBatch: Sendable {
     public let label: String
     public let ops: [UndoOp]
+
+    public init(label: String, ops: [UndoOp]) {
+        self.label = label
+        self.ops = ops
+    }
 }
 
 @MainActor
@@ -94,6 +99,12 @@ public final class TransferQueue: ObservableObject {
             }
         }
         return (batch.label, failures)
+    }
+
+    /// 外部操作（AI 批量重命名等不走队列的功能）登记撤回批次。
+    public func recordExternalUndo(_ batch: UndoableBatch) {
+        undoStack.append(batch)
+        if undoStack.count > Self.maxUndoDepth { undoStack.removeFirst() }
     }
 
     /// 任务成功后记录逆操作；批次全部终态时汇总进撤回栈。

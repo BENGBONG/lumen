@@ -51,6 +51,13 @@ struct ForkLiftCloneApp: App {
                 return nil
             }
 
+            // Cmd+Backspace — 移到废纸篓（macOS 文件管理惯例）
+            if event.specialKey == .delete,
+               event.modifierFlags.contains(.command) {
+                NotificationCenter.default.post(name: .flTrashSelected, object: nil)
+                return nil
+            }
+
             let scalar = chars.unicodeScalars.first!.value
             switch scalar {
             case 0xF705: // F2 – rename
@@ -162,6 +169,11 @@ struct FileCommands: Commands {
                 NotificationCenter.default.post(name: .flRename, object: nil)
             }
             .keyboardShortcut(.return, modifiers: [.command])
+
+            Button("移到废纸篓") {
+                NotificationCenter.default.post(name: .flTrashSelected, object: nil)
+            }
+            .keyboardShortcut(.delete, modifiers: [.command])
         }
         CommandMenu("AI") {
             Button("打开 AI 助手") {
@@ -205,4 +217,8 @@ extension Notification.Name {
     static let flBookmarkPaths = Notification.Name("flBookmarkPaths")
     /// 撤回最近一批传输（Cmd+Z）。
     static let flUndo        = Notification.Name("flUndo")
+    /// 把选中项移到废纸篓（Cmd+Backspace）。
+    static let flTrashSelected = Notification.Name("flTrashSelected")
+    /// 外部操作登记撤回批次。userInfo: ["batch": TransferEngine.UndoableBatch]
+    static let flRecordUndo  = Notification.Name("flRecordUndo")
 }

@@ -70,8 +70,19 @@ struct MainWindowView: View {
             }
         }
         .onChange(of: queue.tasks.count) { _, count in
-            // Auto-open inspector panel whenever a transfer is enqueued.
-            if count > 0 { inspectorVisible = true }
+            // 小文件秒传不打扰：入队 1.5s 后仍有任务在跑才自动弹出传输面板
+            guard count > 0 else { return }
+            Task {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                let stillActive = queue.tasks.contains {
+                    if case .running = $0.status { return true }
+                    if case .pending = $0.status { return true }
+                    return false
+                }
+                if stillActive {
+                    withAnimation(.easeInOut(duration: 0.22)) { inspectorVisible = true }
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .flPasteFiles)) { note in
             guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
@@ -89,6 +100,15 @@ struct MainWindowView: View {
             for p in paths {
                 let name = URL(fileURLWithPath: p).lastPathComponent
                 bookmarks.add(Bookmark(name: name.isEmpty ? "/" : name, path: p))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flTrashSelected)) { _ in
+            Task { await trashSelectedInActive() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flRecordUndo)) { note in
+            // AI 批量操作等外部功能登记的可撤回批次
+            if let batch = note.userInfo?["batch"] as? UndoableBatch {
+                queue.recordExternalUndo(batch)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .flUndo)) { _ in
@@ -267,6 +287,27 @@ struct MainWindowView: View {
         }
         let target = pane.currentPath.appending(name)
         try? await pane.provider.mkdir(target)
+        await pane.reload()
+        // 与新建文件一致：创建后直接进入内联重命名
+        if let item = pane.items.first(where: { $0.name == name }) {
+            pane.selection = [item.id]
+            pane.pendingRenameID = item.id
+        }
+    }
+
+    /// Cmd+Backspace：把选中项移到废纸篓。
+    private func trashSelectedInActive() async {
+        let pane = activeTabs().active
+        let targets = pane.items.filter { pane.selection.contains($0.id) }
+        guard !targets.isEmpty else { NSSound.beep(); return }
+        var failed = 0
+        for item in targets {
+            do {
+                try await pane.provider.delete(pane.currentPath.appending(item.name),
+                                               toTrash: true)
+            } catch { failed += 1 }
+        }
+        if failed > 0 { undoToast = "\(failed) 项无法移到废纸篓" }
         await pane.reload()
     }
 
