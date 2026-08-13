@@ -157,6 +157,9 @@ struct FileTableView: View {
             let openInTab = item("在新标签页打开", #selector(MenuActions.openInNewTab))
             openInTab.isEnabled = targetItems.contains(where: { $0.isDirectory })
             menu.addItem(openInTab)
+            let addBookmark = item("添加到收藏", #selector(MenuActions.addToBookmarks))
+            addBookmark.isEnabled = targetItems.contains(where: { $0.isDirectory && !$0.isPackage })
+            menu.addItem(addBookmark)
             if !insideArchive {
                 menu.addItem(item("用 Finder 显示", #selector(MenuActions.revealSelected)))
             }
@@ -302,6 +305,15 @@ final class MenuActions: NSObject {
         guard let raw = sender.representedObject as? String else { return }
         NotificationCenter.default.post(name: .flNewFile, object: nil,
                                         userInfo: ["template": raw])
+    }
+
+    @objc func addToBookmarks() {
+        let dirs = items.filter { $0.isDirectory && !$0.isPackage }
+        // 归档内部条目用虚拟路径（FileItem.id），本地用真实路径
+        let paths = dirs.map { insideArchive ? $0.id : $0.url.path }
+        guard !paths.isEmpty else { return }
+        NotificationCenter.default.post(name: .flBookmarkPaths, object: nil,
+                                        userInfo: ["paths": paths])
     }
 
     @objc func rename() {

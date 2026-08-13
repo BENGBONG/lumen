@@ -40,6 +40,20 @@ struct SidebarView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .overlay {
+                if store.bookmarks.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "star")
+                            .font(.system(size: 26))
+                            .foregroundStyle(theme.secondaryText.opacity(0.4))
+                        Text("右键文件夹选「添加到收藏」\n或直接把文件夹拖进来")
+                            .font(.system(size: theme.captionFontSize))
+                            .foregroundStyle(theme.secondaryText.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(24)
+                }
+            }
             .overlay(alignment: .bottom) {
                 if dropTargeted {
                     HStack(spacing: 6) {
@@ -77,6 +91,7 @@ struct SidebarView: View {
 private struct BookmarkRow: View {
     let bookmark: Bookmark
     @Environment(\.appearanceTheme) private var theme
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -89,6 +104,14 @@ private struct BookmarkRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .padding(.vertical, 1)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(isHovering ? theme.rowHover : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
     }
 }

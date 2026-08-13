@@ -1,5 +1,6 @@
 import SwiftUI
 import AppearanceKit
+import FileSystemKit
 
 struct StatusBarView: View {
     @Bindable var vm: PaneViewModel
@@ -7,6 +8,12 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // 归档浏览时给出明确的只读提示
+            if (vm.provider as? RoutedFileProvider)?.isInsideArchive(vm.currentPath) == true {
+                Label("归档 · 只读", systemImage: "archivebox")
+                    .foregroundStyle(theme.accent.opacity(0.9))
+                bullet
+            }
             countLabel
             if !vm.selection.isEmpty {
                 bullet

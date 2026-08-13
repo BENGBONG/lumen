@@ -184,4 +184,6 @@ extension Notification.Name {
     /// Create a new file from a template in the active pane.
     /// userInfo: ["template": String]（NewFileTemplate.rawValue）
     static let flNewFile     = Notification.Name("flNewFile")
+    /// 把选中的文件夹加入收藏。userInfo: ["paths": [String]]
+    static let flBookmarkPaths = Notification.Name("flBookmarkPaths")
 }

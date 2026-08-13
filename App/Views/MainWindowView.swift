@@ -71,6 +71,13 @@ struct MainWindowView: View {
                   let template = NewFileTemplate(rawValue: raw) else { return }
             Task { await newFileInActive(template) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .flBookmarkPaths)) { note in
+            guard let paths = note.userInfo?["paths"] as? [String] else { return }
+            for p in paths {
+                let name = URL(fileURLWithPath: p).lastPathComponent
+                bookmarks.add(Bookmark(name: name.isEmpty ? "/" : name, path: p))
+            }
+        }
         .modifier(NotificationListeners(listeners: notificationListeners))
     }
 

@@ -14,37 +14,24 @@ struct PaneToolbarView: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             // Nav buttons
-            Button { Task { await vm.goBack() } } label: {
-                Image(systemName: "chevron.left").opacity(vm.canGoBack ? 1 : 0.3)
+            ToolbarIconButton(systemName: "chevron.left", isEnabled: vm.canGoBack,
+                              help: "后退") { Task { await vm.goBack() } }
+            ToolbarIconButton(systemName: "chevron.right", isEnabled: vm.canGoForward,
+                              help: "前进") { Task { await vm.goForward() } }
+            ToolbarIconButton(systemName: "arrow.up", help: "上级目录") {
+                Task { await vm.goUp() }
             }
-            .disabled(!vm.canGoBack).buttonStyle(.borderless).help("后退")
-
-            Button { Task { await vm.goForward() } } label: {
-                Image(systemName: "chevron.right").opacity(vm.canGoForward ? 1 : 0.3)
+            ToolbarIconButton(systemName: "arrow.clockwise", help: "刷新") {
+                Task { await vm.reload() }
             }
-            .disabled(!vm.canGoForward).buttonStyle(.borderless).help("前进")
-
-            Button { Task { await vm.goUp() } } label: {
-                Image(systemName: "arrow.up")
+            ToolbarIconButton(systemName: vm.includeHidden ? "eye" : "eye.slash",
+                              isActive: vm.includeHidden,
+                              help: vm.includeHidden ? "隐藏 dot 文件" : "显示隐藏文件") {
+                Task { await vm.toggleHidden() }
             }
-            .buttonStyle(.borderless).help("上级目录")
 
-            Button { Task { await vm.reload() } } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless).help("刷新")
-
-            Toggle(isOn: Binding(
-                get: { vm.includeHidden },
-                set: { _ in Task { await vm.toggleHidden() } }
-            )) {
-                Image(systemName: "eye")
-            }
-            .toggleStyle(.button).buttonStyle(.borderless).help("显示隐藏文件")
-
-            // Search bar
             // Search field
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
@@ -84,9 +71,15 @@ struct PaneToolbarView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.vertical, 4)
             .background(RoundedRectangle(cornerRadius: 6).fill(theme.rowHover))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(searchFocused ? theme.accent.opacity(0.55) : Color.clear,
+                                  lineWidth: 1)
+            )
             .frame(maxWidth: .infinity)
+            .padding(.leading, 4)
 
             // AI search toggle button — clearly separate from the search field
             Button {
@@ -128,7 +121,6 @@ struct PaneToolbarView: View {
     }
 
     // MARK: - AI Search
-
     private func runAISearch() {
         guard !localQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         guard let client = AIClient.fromCurrentSettings() else {
@@ -198,5 +190,41 @@ struct PaneToolbarView: View {
         guard let data  = json.data(using: .utf8),
               let array = try? JSONDecoder().decode([String].self, from: data) else { return [] }
         return Set(array)
+    }
+}
+
+// MARK: - 工具栏图标按钮（统一尺寸 + hover 反馈 + 激活态）
+
+/// 工具栏图标按钮：24×22 统一热区，悬停时浮现浅底，激活态用 accent 染色。
+/// 替代裸 .borderless Button（无 hover 反馈、尺寸不一）。
+private struct ToolbarIconButton: View {
+    let systemName: String
+    var isEnabled: Bool = true
+    var isActive: Bool = false
+    let help: String
+    let action: () -> Void
+
+    @Environment(\.appearanceTheme) private var theme
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: theme.bodyFontSize - 1, weight: .medium))
+                .foregroundStyle(isActive ? theme.accent : theme.secondaryText)
+                .frame(width: 24, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isActive
+                              ? theme.accent.opacity(0.14)
+                              : (hovering && isEnabled ? theme.rowHover : Color.clear))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.35)
+        .onHover { hovering = $0 }
+        .help(help)
     }
 }

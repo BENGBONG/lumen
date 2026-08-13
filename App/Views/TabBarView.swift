@@ -93,6 +93,7 @@ private struct TabChip: View {
                     lineWidth: 0.5
                 )
         )
+        .shadow(color: .black.opacity(isActive ? 0.10 : 0), radius: 2, y: 1)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture(perform: onActivate)
