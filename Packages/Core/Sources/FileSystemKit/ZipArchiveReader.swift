@@ -3,8 +3,8 @@ import Foundation
 import zlib
 #endif
 
-/// zip 归档里一个条目的元数据（来自中央目录）。
-public struct ZipEntryInfo: Sendable, Equatable {
+/// 归档里一个条目的元数据（zip 来自中央目录，tar 来自头部块）。
+public struct ArchiveEntryInfo: Sendable, Equatable {
     /// 内部完整路径，"/" 分隔；目录条目以 "/" 结尾。
     public let path: String
     public let isDirectory: Bool
@@ -38,7 +38,7 @@ public enum ZipError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notArchive: return "不是有效的 ZIP 归档"
+        case .notArchive: return "不是有效的归档文件"
         case .unsupported(let what): return "暂不支持：\(what)"
         case .corrupt: return "归档已损坏"
         case .entryNotFound(let name): return "归档中找不到 \(name)"
@@ -46,11 +46,22 @@ public enum ZipError: Error, LocalizedError, Equatable {
     }
 }
 
+/// 归档读取器的统一抽象：zip（随机访问）与 tar（顺序流）各自实现，
+/// RoutedFileProvider 只依赖这个协议。
+public protocol ArchiveReader {
+    var entries: [ArchiveEntryInfo] { get }
+    /// 解压单个条目（目录条目返回空 Data）。
+    func data(for entryPath: String) throws -> Data
+    /// 全部提取到目标目录（保留内部目录结构），返回总解压字节数。
+    @discardableResult
+    func extractAll(to dir: URL) throws -> Int64
+}
+
 /// 只读 zip 解析器：扫描中央目录获取条目列表，按需解压单个条目。
 /// 支持 stored / deflate、UTF-8 与 GBK 文件名。不支持加密与 zip64。
-public final class ZipArchiveReader {
+public final class ZipArchiveReader: ArchiveReader {
     public let url: URL
-    public private(set) var entries: [ZipEntryInfo] = []
+    public private(set) var entries: [ArchiveEntryInfo] = []
 
     /// 中央目录原始记录（含解压所需的本地头偏移）。
     private struct RawEntry {
@@ -139,7 +150,7 @@ public final class ZipArchiveReader {
         }
         raw = parsed
         entries = parsed.map {
-            ZipEntryInfo(path: $0.path, isDirectory: $0.isDirectory,
+            ArchiveEntryInfo(path: $0.path, isDirectory: $0.isDirectory,
                          uncompressedSize: Int64($0.uncompressedSize),
                          compressedSize: Int64($0.compressedSize),
                          method: $0.method, modifiedAt: $0.modDate)

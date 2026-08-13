@@ -9,8 +9,8 @@ public enum RoutedProviderError: Error, LocalizedError, Equatable {
 }
 
 /// 路由型 FileProvider：对外表现为一棵统一的本地文件树，
-/// 当路径穿过 .zip 文件时自动切换为「归档虚拟目录」语义——
-/// 可以像浏览普通文件夹一样浏览 zip 内部，无需解压到用户目录。
+/// 当路径穿过归档文件（zip / tar / tgz / tar.gz）时自动切换为
+/// 「归档虚拟目录」语义——可以像浏览普通文件夹一样浏览归档内部，无需解压到用户目录。
 ///
 /// 路径编码：与普通本地路径完全一致（providerID = "local"），
 /// 例如 /Users/x/报告.zip/数据/表格.xlsx。路由规则 = 路径的某个前缀
@@ -30,8 +30,8 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
     private let local = LocalFileProvider()
     private let fm = FileManager.default
     private let lock = NSLock()
-    /// key = archivePath|mtime → 解析器
-    private var archives: [String: ZipArchiveReader] = [:]
+    /// key = archivePath|mtime → 解析器（zip / tar 各自实现 ArchiveReader）
+    private var archives: [String: any ArchiveReader] = [:]
     /// key 同上 → 解压缓存根目录
     private var extracted: [String: URL] = [:]
 
@@ -44,18 +44,26 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
         URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("LumenZipCache")
     }
 
+    /// 该文件名是否是可虚拟浏览的归档（UI 双击中转也用它判断）。
+    public static func isBrowsableArchive(name: String) -> Bool {
+        let lower = name.lowercased()
+        if lower.hasSuffix(".tar.gz") { return true }
+        let ext = (lower as NSString).pathExtension
+        return ["zip", "tar", "tgz"].contains(ext)
+    }
+
     // MARK: - 路由解析
 
-    /// 把路径拆成 (归档文件 URL, 归档内部组件)。路径不穿过任何 zip 时返回 nil。
+    /// 把路径拆成 (归档文件 URL, 归档内部组件)。路径不穿过任何支持的归档时返回 nil。
     private func resolve(_ path: ProviderPath) -> (archive: URL, inner: [String])? {
         let components = path.components
-        // 从长到短找第一个「存在且是普通文件且扩展名是 zip」的前缀
+        // 从长到短找第一个「存在且是普通文件且是可浏览归档」的前缀
         for end in stride(from: components.count, through: 1, by: -1) {
             let prefix = components[..<end]
             let url = URL(fileURLWithPath: "/" + prefix.joined(separator: "/"))
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else { continue }
-            guard url.pathExtension.lowercased() == "zip" else { continue }
+            guard Self.isBrowsableArchive(name: url.lastPathComponent) else { continue }
             return (url, Array(components[end...]))
         }
         return nil
@@ -67,7 +75,7 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
         return !inner.isEmpty
     }
 
-    private func archive(for url: URL) throws -> ZipArchiveReader {
+    private func archive(for url: URL) throws -> any ArchiveReader {
         let mtime = (try? fm.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)?
             .timeIntervalSince1970 ?? 0
         let key = "\(url.path)|\(mtime)"
@@ -75,12 +83,18 @@ public final class RoutedFileProvider: FileProvider, @unchecked Sendable {
         if let cached = archives[key] { lock.unlock(); return cached }
         lock.unlock()
 
-        let reader = try ZipArchiveReader(url: url)
+        let lower = url.lastPathComponent.lowercased()
+        let reader: any ArchiveReader
+        if lower.hasSuffix(".tar") || lower.hasSuffix(".tar.gz") || lower.hasSuffix(".tgz") {
+            reader = try TarArchiveReader(url: url)
+        } else {
+            reader = try ZipArchiveReader(url: url)
+        }
         let total = reader.entries.reduce(Int64(0)) { $0 + $1.uncompressedSize }
         guard total <= Self.maxArchiveBytes else {
             throw ZipError.unsupported("归档过大（解压后超过 1GB）")
         }
-        lock.lock()
+       lock.lock()
         archives[key] = reader
         lock.unlock()
         return reader

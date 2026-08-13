@@ -217,8 +217,8 @@ struct FileTableView: View {
     private func openOne(_ item: FileItem) {
         if item.isDirectory && !item.isPackage {
             Task { await vm.navigate(to: vm.currentPath.appending(item.name)) }
-        } else if (item.name as NSString).pathExtension.lowercased() == "zip" {
-            // 双击 zip：进入归档虚拟目录浏览（RoutedFileProvider 透明接管）
+        } else if RoutedFileProvider.isBrowsableArchive(name: item.name) {
+            // 双击归档（zip/tar/tgz/tar.gz）：进入虚拟目录浏览
             Task { await vm.navigate(to: vm.currentPath.appending(item.name)) }
         } else {
             NSWorkspace.shared.open(item.url)
