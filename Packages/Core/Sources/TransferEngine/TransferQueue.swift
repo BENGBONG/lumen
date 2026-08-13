@@ -1,13 +1,31 @@
 import Foundation
 import FileSystemKit
 
+/// 单个可撤回操作（成功执行的传输任务的逆操作）。
+public enum UndoOp: Sendable {
+    /// 撤销复制：把产物送入废纸篓（可找回，非永久删除）
+    case trashCreated(ProviderPath)
+    /// 撤销移动：移回原位置
+    case moveBack(from: ProviderPath, to: ProviderPath)
+}
+
+/// 一次撤回的单位 = 一次拖拽/粘贴批次（可能含多个文件）。
+public struct UndoableBatch: Sendable {
+    public let label: String
+    public let ops: [UndoOp]
+}
+
 @MainActor
 public final class TransferQueue: ObservableObject {
     @Published public private(set) var tasks: [TransferTask] = []
+    @Published public private(set) var undoStack: [UndoableBatch] = []
 
     private let provider: any FileProvider
     private let resolver: any ConflictResolver
     private var processing = false
+    /// batchID → 已成功的逆操作（批次全部终态后出栈为 UndoableBatch）
+    private var pendingUndoOps: [UUID: [UndoOp]] = [:]
+    private static let maxUndoDepth = 50
 
     public init(provider: any FileProvider, resolver: any ConflictResolver = AutoRenameResolver()) {
         self.provider = provider
@@ -15,7 +33,19 @@ public final class TransferQueue: ObservableObject {
     }
 
     public func enqueue(_ task: TransferTask) {
-        tasks.append(task)
+        enqueue([task])
+    }
+
+    /// 批量入队：同批任务共享 batchID，撤回时作为一个整体。
+    public func enqueue(_ newTasks: [TransferTask]) {
+        guard !newTasks.isEmpty else { return }
+        let batchID = UUID()
+        let stamped = newTasks.map { task -> TransferTask in
+            var t = task
+            t.batchID = batchID
+            return t
+        }
+        tasks.append(contentsOf: stamped)
         Task { await drain() }
     }
 
@@ -34,6 +64,62 @@ public final class TransferQueue: ObservableObject {
             }
         }
     }
+
+    // MARK: - 撤回
+
+    public var canUndo: Bool { !undoStack.isEmpty }
+    public var undoLabel: String? { undoStack.last?.label }
+
+    /// 撤回最近一批传输。返回被撤回的批次描述；无可撤回时返回 nil。
+    /// 个别逆操作失败（如原位置已有同名文件）会跳过，不中断整批。
+    @discardableResult
+    public func undoLast() async -> String? {
+        guard let batch = undoStack.popLast() else { return nil }
+        for op in batch.ops.reversed() {
+            switch op {
+            case .trashCreated(let path):
+                try? await provider.delete(path, toTrash: true)
+            case .moveBack(let from, let to):
+                try? await provider.move(from, to: to)
+            }
+        }
+        return batch.label
+    }
+
+    /// 任务成功后记录逆操作；批次全部终态时汇总进撤回栈。
+    private func recordUndo(_ task: TransferTask) {
+        let op: UndoOp
+        switch task.kind {
+        case .copy: op = .trashCreated(task.destination)
+        case .move: op = .moveBack(from: task.destination, to: task.source)
+        }
+        pendingUndoOps[task.batchID, default: []].append(op)
+        finalizeBatchIfNeeded(task.batchID)
+    }
+
+    private func finalizeBatchIfNeeded(_ batchID: UUID) {
+        let batchTasks = tasks.filter { $0.batchID == batchID }
+        guard !batchTasks.isEmpty else { return }
+        let allTerminal = batchTasks.allSatisfy {
+            switch $0.status {
+            case .completed, .failed, .cancelled, .skipped: return true
+            case .pending, .running: return false
+            }
+        }
+        guard allTerminal, let ops = pendingUndoOps.removeValue(forKey: batchID),
+              !ops.isEmpty else { return }
+
+        let first = batchTasks[0]
+        let verb = first.kind == .copy ? "复制" : "移动"
+        let destDir = first.destination.parent()?.components.last ?? "/"
+        let label = ops.count == 1
+            ? "\(verb) \(first.destination.components.last ?? "")"
+            : "\(verb) \(ops.count) 个项目到 \(destDir)"
+        undoStack.append(UndoableBatch(label: label, ops: ops))
+        if undoStack.count > Self.maxUndoDepth { undoStack.removeFirst() }
+    }
+
+    // MARK: - 执行
 
     private func drain() async {
         guard !processing else { return }
@@ -70,6 +156,10 @@ public final class TransferQueue: ObservableObject {
                     try await provider.move(task.source, to: task.destination)
                 }
                 update(task.id) { $0.status = .completed }
+                // 用队列里的最新任务状态记录（destination 可能已被冲突重命名改写）
+                if let done = tasks.first(where: { $0.id == task.id }) {
+                    recordUndo(done)
+                }
             } catch {
                 update(task.id) { $0.status = .failed(error.localizedDescription) }
             }

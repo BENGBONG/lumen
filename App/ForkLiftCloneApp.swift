@@ -65,6 +65,12 @@ struct ForkLiftCloneApp: App {
 
 struct FileCommands: Commands {
     var body: some Commands {
+        CommandGroup(replacing: .undo) {
+            Button("撤回") {
+                NotificationCenter.default.post(name: .flUndo, object: nil)
+            }
+            .keyboardShortcut("z", modifiers: [.command])
+        }
         CommandGroup(replacing: .newItem) {
             Button("新建标签页") {
                 NotificationCenter.default.post(name: .flNewTab, object: nil)
@@ -186,4 +192,6 @@ extension Notification.Name {
     static let flNewFile     = Notification.Name("flNewFile")
     /// 把选中的文件夹加入收藏。userInfo: ["paths": [String]]
     static let flBookmarkPaths = Notification.Name("flBookmarkPaths")
+    /// 撤回最近一批传输（Cmd+Z）。
+    static let flUndo        = Notification.Name("flUndo")
 }

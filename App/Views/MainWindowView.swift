@@ -81,6 +81,16 @@ struct MainWindowView: View {
                 bookmarks.add(Bookmark(name: name.isEmpty ? "/" : name, path: p))
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .flUndo)) { _ in
+            Task {
+                let label = await queue.undoLast()
+                if label == nil { NSSound.beep() }
+                // 撤回改变了文件系统：两个窗格都刷新兜底
+                // （本地目录的 DirectoryWatcher 通常已自动刷新，这里是双保险）
+                await leftTabs.active.reload()
+                await rightTabs.active.reload()
+            }
+        }
         .modifier(NotificationListeners(listeners: notificationListeners))
     }
 
@@ -254,15 +264,14 @@ struct MainWindowView: View {
 
     private func handleDrop(urls: [URL], destination: ProviderPath, kind: TransferKind = .copy) {
         let provider = LocalFileProvider()
-        for url in urls {
-            let srcPath = provider.providerPath(for: url)
-            let dstPath = destination.appending(url.lastPathComponent)
-            queue.enqueue(TransferTask(
+        let batch = urls.map { url in
+            TransferTask(
                 kind: kind,
-                source: srcPath,
-                destination: dstPath
-            ))
+                source: provider.providerPath(for: url),
+                destination: destination.appending(url.lastPathComponent)
+            )
         }
+        queue.enqueue(batch)   // 同批共享 batchID，Cmd+Z 一次撤回整批
         Task {
             try? await Task.sleep(nanoseconds: 300_000_000)
             if leftTabs.active.currentPath == destination { await leftTabs.active.reload() }
@@ -273,17 +282,16 @@ struct MainWindowView: View {
     private func transferToOther(kind: TransferKind) async {
         let src = activeTabs().active
         let dst = otherTabs().active
-        for id in src.selection {
-            guard let item = src.items.first(where: { $0.id == id }) else { continue }
-            let srcPath = src.currentPath.appending(item.name)
-            let dstPath = dst.currentPath.appending(item.name)
-            queue.enqueue(TransferTask(
+        let batch = src.selection.compactMap { id -> TransferTask? in
+            guard let item = src.items.first(where: { $0.id == id }) else { return nil }
+            return TransferTask(
                 kind: kind,
-                source: srcPath,
-                destination: dstPath,
+                source: src.currentPath.appending(item.name),
+                destination: dst.currentPath.appending(item.name),
                 bytesTotal: item.size
-            ))
+            )
         }
+        queue.enqueue(batch)
     }
 }
 
