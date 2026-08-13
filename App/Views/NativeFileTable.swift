@@ -37,6 +37,10 @@ struct NativeFileTable: NSViewRepresentable {
     let onDropFiles: ([URL], URL, Bool) -> Bool
     let onContextMenu: ([FileItem]) -> NSMenu?
     let onRename: (FileItem, String) -> Void
+    /// 请求对某个 item 发起内联重命名（新建文件后 / F2 / 右键菜单）。
+    /// 消费后通过 onRenameRequestConsumed 通知清除。
+    let renameRequestID: FileItem.ID?
+    let onRenameRequestConsumed: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -149,6 +153,15 @@ struct NativeFileTable: NSViewRepresentable {
             coord.suppressSelectionFeedback = true
             table.selectRowIndexes(desired, byExtendingSelection: false)
             coord.suppressSelectionFeedback = false
+        }
+
+        // Consume an inline-rename request (new file / F2 / context menu).
+        // Runs after items+selection sync so the target row is already visible.
+        if let requestID = renameRequestID {
+            if let row = items.firstIndex(where: { $0.id == requestID }) {
+                coord.startRename(row: row)
+            }
+            onRenameRequestConsumed()
         }
     }
 
@@ -444,6 +457,14 @@ struct NativeFileTable: NSViewRepresentable {
             table.addSubview(field)
             table.window?.makeFirstResponder(field)
             field.selectText(nil)
+            // Finder 行为：文件只预选主体名（不含扩展名），目录全选
+            if !item.isDirectory {
+                let nsName = item.name as NSString
+                let stemLength = (nsName.deletingPathExtension as NSString).length  // UTF-16 长度
+                if stemLength > 0, stemLength < nsName.length {
+                    field.currentEditor()?.selectedRange = NSRange(location: 0, length: stemLength)
+                }
+            }
 
             editingRow     = row
             editingOverlay = field

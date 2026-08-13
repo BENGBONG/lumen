@@ -25,6 +25,9 @@ public final class PaneViewModel: Identifiable {
     public var searchQuery: String = ""
     /// When non-nil, only files whose names are in this set are shown (AI search result).
     public var aiSearchResults: Set<String>? = nil
+    /// 请求列表对某个 item 发起内联重命名（新建文件后 / F2 / 右键重命名）。
+    /// 由 NativeFileTable 消费后清回 nil。
+    public var pendingRenameID: FileItem.ID? = nil
     public var sortKey: SortKey = .name {
         didSet { items = applyView(allItems) }
     }

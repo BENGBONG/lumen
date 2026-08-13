@@ -63,6 +63,11 @@ struct FileTableView: View {
                             vm.currentPath.appending(item.name), to: newName)
                         await vm.reload()
                     }
+                },
+                renameRequestID: vm.pendingRenameID,
+                onRenameRequestConsumed: {
+                    // 延迟到下一 runloop 清状态，避免在 view update 中写 @Observable
+                    DispatchQueue.main.async { vm.pendingRenameID = nil }
                 }
             )
 

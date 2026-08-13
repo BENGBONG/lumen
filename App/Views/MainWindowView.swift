@@ -12,8 +12,6 @@ struct MainWindowView: View {
     @State private var inspectorVisible = false
     @State private var chatVisible = false
     @State private var chatContextURLs: [URL] = []
-    @State private var renameTarget: FileItem?
-    @State private var renameInput: String = ""
     @StateObject private var queue: TransferQueue
 
     enum PaneSide { case left, right }
@@ -74,9 +72,6 @@ struct MainWindowView: View {
             Task { await newFileInActive(template) }
         }
         .modifier(NotificationListeners(listeners: notificationListeners))
-        .sheet(item: $renameTarget) { item in
-            renameSheet(item: item)
-        }
     }
 
     private var detailPane: some View {
@@ -183,44 +178,12 @@ struct MainWindowView: View {
         bookmarks.add(Bookmark(name: name, path: "/" + path.components.joined(separator: "/")))
     }
 
+    /// 重命名统一走列表内联（NativeFileTable 的 overlay），不再弹 sheet。
     private func startRename() {
         let pane = activeTabs().active
         guard let id = pane.selection.first,
-              let item = pane.items.first(where: { $0.id == id }) else { return }
-        renameInput = item.name
-        renameTarget = item
-    }
-
-    private func renameSheet(item: FileItem) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("重命名 “\(item.name)”")
-                .font(.headline)
-            TextField("新名称", text: $renameInput)
-                .textFieldStyle(.roundedBorder)
-                .frame(minWidth: 320)
-                .onSubmit { commitRename(item: item) }
-            HStack {
-                Spacer()
-                Button("取消") { renameTarget = nil }
-                    .keyboardShortcut(.cancelAction)
-                Button("确定") { commitRename(item: item) }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(renameInput.trimmingCharacters(in: .whitespaces).isEmpty
-                              || renameInput == item.name)
-            }
-        }
-        .padding(20)
-    }
-
-    private func commitRename(item: FileItem) {
-        let pane = activeTabs().active
-        let newName = renameInput.trimmingCharacters(in: .whitespaces)
-        renameTarget = nil
-        guard !newName.isEmpty, newName != item.name else { return }
-        Task {
-            try? await pane.provider.rename(pane.currentPath.appending(item.name), to: newName)
-            await pane.reload()
-        }
+              pane.items.contains(where: { $0.id == id }) else { return }
+        pane.pendingRenameID = id
     }
 
     private func activeTabs() -> PaneTabsViewModel {
@@ -272,11 +235,10 @@ struct MainWindowView: View {
             return
         }
         await pane.reload()
-        // 选中新文件并弹出重命名 sheet（复用 .flRename 的链路）
+        // 选中新文件并发起内联重命名（编辑框直接出现在列表行上）
         if let item = pane.items.first(where: { $0.name == name }) {
             pane.selection = [item.id]
-            renameInput = name
-            renameTarget = item
+            pane.pendingRenameID = item.id
         }
     }
 
