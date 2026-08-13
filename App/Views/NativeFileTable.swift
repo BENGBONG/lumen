@@ -812,29 +812,37 @@ final class NameCellView: NSTableCellView {
 
     func configure(with item: FileItem, theme: any AppearanceTheme) {
         label.stringValue = item.name
-        let symbol = NameCellView.iconName(for: item)
-        icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        icon.contentTintColor = item.isDirectory
-            ? NSColor(theme.accent)
-            : NSColor.secondaryLabelColor
+        let spec = NameCellView.iconSpec(for: item, theme: theme)
+        icon.image = NSImage(systemSymbolName: spec.symbol, accessibilityDescription: nil)
+        icon.contentTintColor = spec.tint
+        // 隐藏文件（dot 文件）整体变淡，与普通文件一眼区分
+        icon.alphaValue  = item.isHidden ? 0.45 : 1.0
+        label.alphaValue = item.isHidden ? 0.55 : 1.0
     }
 
-    private static func iconName(for item: FileItem) -> String {
-        if item.isPackage { return "shippingbox.fill" }
-        if item.isDirectory { return "folder.fill" }
-        if item.isSymlink { return "link" }
+    private static func iconSpec(for item: FileItem,
+                                 theme: any AppearanceTheme) -> (symbol: String, tint: NSColor) {
+        let accent = NSColor(theme.accent)
+        let secondary = NSColor.secondaryLabelColor
+        if item.isPackage { return ("shippingbox.fill", accent) }
+        if item.isDirectory { return ("folder.fill", accent) }
+        if item.isSymlink { return ("link", secondary) }
         let ext = (item.name as NSString).pathExtension.lowercased()
-        guard !ext.isEmpty else { return "doc" }
+        guard !ext.isEmpty else { return ("doc", secondary) }
         switch ext {
-        case "png", "jpg", "jpeg", "gif", "heic", "tiff", "bmp", "webp": return "photo"
-        case "mov", "mp4", "m4v", "avi", "mkv": return "film"
-        case "mp3", "wav", "flac", "aac", "m4a": return "waveform"
-        case "pdf": return "doc.richtext"
-        case "zip", "tar", "gz", "bz2", "7z", "rar": return "archivebox"
+        // Office 三件套：贴近平台习惯的彩色图标
+        case "xls", "xlsx", "csv", "tsv", "numbers": return ("tablecells", .systemGreen)
+        case "doc", "docx", "pages":                 return ("doc.text", .systemBlue)
+        case "ppt", "pptx", "key":                   return ("play.rectangle", .systemOrange)
+        case "png", "jpg", "jpeg", "gif", "heic", "tiff", "bmp", "webp": return ("photo", secondary)
+        case "mov", "mp4", "m4v", "avi", "mkv": return ("film", secondary)
+        case "mp3", "wav", "flac", "aac", "m4a": return ("waveform", secondary)
+        case "pdf": return ("doc.richtext", secondary)
+        case "zip", "tar", "gz", "bz2", "7z", "rar": return ("archivebox", secondary)
         case "swift", "py", "js", "ts", "rb", "go", "rs", "java", "c", "cpp", "h", "m":
-            return "chevron.left.forwardslash.chevron.right"
-        case "txt", "md", "rtf": return "doc.text"
-        default: return "doc"
+            return ("chevron.left.forwardslash.chevron.right", secondary)
+        case "txt", "md", "rtf": return ("doc.text", secondary)
+        default: return ("doc", secondary)
         }
     }
 }

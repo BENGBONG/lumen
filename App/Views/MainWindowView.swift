@@ -60,6 +60,15 @@ struct MainWindowView: View {
         }
         .onChange(of: leftTabs.active.currentPath) { _, _ in persistPaneState() }
         .onChange(of: rightTabs.active.currentPath) { _, _ in persistPaneState() }
+        .onChange(of: focusedSide) { _, new in
+            // 焦点切到一侧时清空另一侧的选中——同一时间只有一侧有选中项，
+            // 避免"两边都选中"的歧义（F5/F6 等操作的对象永远明确）
+            if new == .left {
+                rightTabs.active.selection.removeAll()
+            } else {
+                leftTabs.active.selection.removeAll()
+            }
+        }
         .onChange(of: queue.tasks.count) { _, count in
             // Auto-open inspector panel whenever a transfer is enqueued.
             if count > 0 { inspectorVisible = true }
