@@ -61,6 +61,13 @@ public final class LocalFileProvider: FileProvider, @unchecked Sendable {
         )
     }
 
+    public func item(at path: ProviderPath) async -> FileItem? {
+        let target = url(for: path)
+        return await Task.detached(priority: .userInitiated) {
+            Self.makeItem(target)
+        }.value
+    }
+
     public func move(_ src: ProviderPath, to dst: ProviderPath) async throws {
         try fm.moveItem(at: url(for: src), to: url(for: dst))
     }

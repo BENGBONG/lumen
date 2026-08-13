@@ -6,6 +6,13 @@ public enum ConflictResolution: Sendable, Equatable {
     case skip
     case rename(newName: String)
     case merge
+    /// 中止当前任务（用户主动停止）。
+    case cancel
+}
+
+public enum TransferError: Error, Sendable {
+    /// 目录合并未实现——resolver 返回 .merge 时任务以该错误失败，避免静默丢数据。
+    case mergeUnsupported
 }
 
 public protocol ConflictResolver: Sendable {

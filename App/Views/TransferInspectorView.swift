@@ -158,6 +158,7 @@ struct TransferInspectorView: View {
         queue.tasks.filter {
             if case .completed  = $0.status { return true }
             if case .cancelled  = $0.status { return true }
+            if case .skipped    = $0.status { return true }
             return false
         }.count
     }
@@ -174,7 +175,7 @@ struct TransferInspectorView: View {
         let total = Double(queue.tasks.count)
         let done  = queue.tasks.reduce(0.0) { acc, t in
             switch t.status {
-            case .completed, .cancelled:     return acc + 1.0
+            case .completed, .cancelled, .skipped: return acc + 1.0
             case .running(let p):            return acc + p
             case .failed:                    return acc + 1.0
             default:                         return acc
@@ -260,6 +261,9 @@ private struct TransferRow: View {
         case .cancelled:
             Image(systemName: "minus.circle")
                 .foregroundStyle(theme.secondaryText.opacity(0.5))
+        case .skipped:
+            Image(systemName: "arrow.right.to.line.compact")
+                .foregroundStyle(theme.secondaryText.opacity(0.5))
         }
     }
 
@@ -294,6 +298,10 @@ private struct TransferRow: View {
             Text("已取消")
                 .font(.system(size: theme.captionFontSize - 1))
                 .foregroundStyle(theme.secondaryText.opacity(0.6))
+        case .skipped:
+            Text("已跳过")
+                .font(.system(size: theme.captionFontSize - 1))
+                .foregroundStyle(theme.secondaryText.opacity(0.6))
         }
     }
 
@@ -319,6 +327,8 @@ private struct TransferRow: View {
                 .foregroundStyle(.red.opacity(0.85))
                 .lineLimit(2)
         case .cancelled:
+            EmptyView()
+        case .skipped:
             EmptyView()
         }
     }

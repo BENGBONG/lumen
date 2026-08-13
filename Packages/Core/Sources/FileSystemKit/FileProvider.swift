@@ -35,6 +35,8 @@ public protocol FileProvider: Sendable {
     var supportsObservation: Bool { get }
 
     func list(_ path: ProviderPath, includeHidden: Bool) async throws -> [FileItem]
+    /// 单个路径的元数据查询；路径不存在时返回 nil。
+    func item(at path: ProviderPath) async -> FileItem?
     func move(_ src: ProviderPath, to dst: ProviderPath) async throws
     func copy(_ src: ProviderPath, to dst: ProviderPath, progress: ((Double) -> Void)?) async throws
     func delete(_ path: ProviderPath, toTrash: Bool) async throws
@@ -45,6 +47,9 @@ public protocol FileProvider: Sendable {
 
 public extension FileProvider {
     var supportsObservation: Bool { false }
+    /// 默认实现返回 nil（不支持元数据查询的 provider 视为"目标不存在"，
+    /// 冲突检测自动跳过，行为与接入前一致）。
+    func item(at path: ProviderPath) async -> FileItem? { nil }
     func observe(_ path: ProviderPath) -> AsyncStream<FileSystemEvent> {
         AsyncStream { $0.finish() }
     }

@@ -12,13 +12,16 @@ public enum TransferStatus: Sendable, Equatable {
     case completed
     case failed(String)
     case cancelled
+    /// 冲突时用户/resolver 选择跳过，任务未执行。
+    case skipped
 }
 
 public struct TransferTask: Identifiable, Sendable {
     public let id: UUID
     public let kind: TransferKind
     public let source: ProviderPath
-    public let destination: ProviderPath
+    /// 冲突重命名后目的地会变，所以是 var。
+    public var destination: ProviderPath
     public var status: TransferStatus
     public var bytesTotal: Int64
     public var bytesTransferred: Int64

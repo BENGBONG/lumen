@@ -32,7 +32,8 @@ struct MainWindowView: View {
         let rightPath = provider.providerPath(for: rightURL)
         _leftTabs = State(wrappedValue: PaneTabsViewModel(provider: provider, initialPath: leftPath))
         _rightTabs = State(wrappedValue: PaneTabsViewModel(provider: provider, initialPath: rightPath))
-        _queue = StateObject(wrappedValue: TransferQueue(provider: provider))
+        _queue = StateObject(wrappedValue: TransferQueue(provider: provider,
+                                                         resolver: UserConflictResolver()))
     }
 
     private static func directoryOrNil(_ url: URL) -> URL? {
