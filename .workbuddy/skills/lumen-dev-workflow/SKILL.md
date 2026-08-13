@@ -35,6 +35,11 @@ bash scripts/build-app.sh debug && pkill -x ForkLiftClone; sleep 1; open build/L
 6. **NSTableView + .id 重建可能漏 reload**——NativeFileTable 已有自愈：`table.numberOfRows != items.count` 对账补 reload。改动数据流时保持这个不变式。
 7. **NSMenu 子菜单项**不进 `menu.items` 顶层循环，target 要单独挂；representedObject 被占用时另传值。
 8. **TCC**：ad-hoc 重签后 Desktop/Documents 权限可能重置，`tccutil reset All com.panglin.forkliftclone`；Bundle ID 不能改（会丢 Keychain 里的 AI key）。
+9. **`.background(A).background(B)` 的 B 垫在 A 底下**——多层背景要"后者盖前者"时用 `ZStack { Rectangle().fill(A); Rectangle().fill(B) }`（AnyShapeStyle 不是 View，必须包 Rectangle）。
+10. **构建-重启链路禁用 `;`**：`swift build && build-app.sh && pkill; open` 这种写法在编译失败时照样重启旧版（踩过两次）。必须全 `&&`，并确认输出含 "Build of product 'ForkLiftClone' complete!"。
+11. **SwiftUI 修饰符链过长**（十来个 onReceive/onChange）会 type-check 超时——抽 ViewModifier + reduce AnyView（见 MainWindowView 的 NotificationReceivers）。
+12. **自定义 Codable**：struct 手写 `init(from:)` 后编译器不再合成 `encode(to:)`，两个都要写。
+13. **KeyEquivalent**：退格是 `.delete`（不是 deleteBackward），前进删除是 `.deleteForward`。
 
 ## 架构速查
 
