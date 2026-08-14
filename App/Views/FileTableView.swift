@@ -158,6 +158,15 @@ struct FileTableView: View {
             menu.addItem(item("用 Finder 显示当前目录", #selector(MenuActions.revealCurrentDir)))
         } else {
             menu.addItem(item("打开", #selector(MenuActions.openSelected)))
+            // 单选普通文件时提供「打开方式」子菜单（归档虚拟目录内没有真实路径，跳过）
+            if !insideArchive,
+               targetItems.count == 1,
+               let file = targetItems.first,
+               !file.isDirectory {
+                let openWithItem = NSMenuItem(title: "打开方式", action: nil, keyEquivalent: "")
+                openWithItem.submenu = buildOpenWithMenu(for: file)
+                menu.addItem(openWithItem)
+            }
             let openInTab = item("在新标签页打开", #selector(MenuActions.openInNewTab))
             openInTab.isEnabled = targetItems.contains(where: { $0.isDirectory })
             menu.addItem(openInTab)
@@ -203,10 +212,11 @@ struct FileTableView: View {
             menuItem.target = actions
             menuItem.representedObject = actions
         }
-        // 子菜单项不进上面的循环：单独挂 target（它们的 representedObject
-        // 已被占用为模板类型标识）
-        if let newFileMenu = menu.items.first(where: { $0.submenu != nil })?.submenu {
-            for mi in newFileMenu.items where mi.action != nil {
+        // 子菜单项不进上面的循环：单独挂 target。
+        // - 新建文件模板项：representedObject 已被占用为模板类型标识
+        // - 打开方式项：representedObject 已被占用为目标应用 URL
+        for subItem in menu.items where subItem.submenu != nil {
+            for mi in subItem.submenu?.items ?? [] where mi.action != nil {
                 mi.target = actions
             }
         }
@@ -217,6 +227,52 @@ struct FileTableView: View {
 
     private func item(_ title: String, _ action: Selector) -> NSMenuItem {
         NSMenuItem(title: title, action: action, keyEquivalent: "")
+    }
+
+    /// 「打开方式」子菜单：默认应用置顶带勾 + 其他候选（带应用图标）+「其他…」。
+    /// target 由 buildContextMenu 底部循环统一挂到 MenuActions。
+    private func buildOpenWithMenu(for file: FileItem) -> NSMenu {
+        let submenu = NSMenu()
+        let url = file.url
+
+        let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: url)
+        var candidates = NSWorkspace.shared.urlsForApplications(toOpen: url)
+
+        // 默认应用提到最前（与 Finder 语义一致）
+        if let def = defaultApp {
+            candidates.removeAll { $0 == def }
+            candidates.insert(def, at: 0)
+        }
+
+        for appURL in candidates {
+            let mi = NSMenuItem(title: appName(for: appURL),
+                                action: #selector(MenuActions.openWith(_:)),
+                                keyEquivalent: "")
+            mi.representedObject = appURL
+            if appURL == defaultApp { mi.state = .on }
+            let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+            icon.size = NSSize(width: 16, height: 16)
+            mi.image = icon
+            submenu.addItem(mi)
+        }
+
+        if !candidates.isEmpty { submenu.addItem(.separator()) }
+        let other = NSMenuItem(title: "其他…",
+                               action: #selector(MenuActions.openWithOther),
+                               keyEquivalent: "")
+        submenu.addItem(other)
+        return submenu
+    }
+
+    private func appName(for bundleURL: URL) -> String {
+        if let bundle = Bundle(url: bundleURL) {
+            if let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+                ?? (bundle.object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String),
+               !name.isEmpty {
+                return name
+            }
+        }
+        return bundleURL.deletingPathExtension().lastPathComponent
     }
 
     // MARK: - Actions
@@ -275,6 +331,32 @@ final class MenuActions: NSObject {
 
     @objc func openSelected() {
         for item in items { openOne(item) }
+    }
+
+    /// 用指定应用打开当前选中文件（「打开方式」子菜单）。
+    @objc func openWith(_ sender: NSMenuItem) {
+        guard let appURL = sender.representedObject as? URL else { return }
+        openFiles(with: appURL)
+    }
+
+    /// 「其他…」：NSOpenPanel 选任意应用后打开。
+    @objc func openWithOther() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        // 只显示 .app（按包判定，与 Finder 一致）
+        panel.allowedContentTypes = [.application]
+        guard panel.runModal() == .OK, let appURL = panel.url else { return }
+        openFiles(with: appURL)
+    }
+
+    private func openFiles(with appURL: URL) {
+        let urls = items.filter { !$0.isDirectory }.map(\.url)
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.open(urls, withApplicationAt: appURL,
+                                configuration: NSWorkspace.OpenConfiguration())
     }
 
     @objc func openInNewTab() {
