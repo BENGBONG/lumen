@@ -13,6 +13,9 @@ struct StatusBarView: View {
                 Label("归档 · 只读", systemImage: "archivebox")
                     .foregroundStyle(theme.accent.opacity(0.9))
                 bullet
+            } else if let git = vm.gitInfo {
+                gitBadge(git)
+                bullet
             }
             countLabel
             if !vm.selection.isEmpty {
@@ -64,6 +67,48 @@ struct StatusBarView: View {
 
     private var bullet: some View {
         Text("·").foregroundStyle(theme.secondaryText.opacity(0.5))
+    }
+
+    /// git 分支徽标：显示当前分支 + dirty 指示点，点击弹出本地分支列表切换。
+    @ViewBuilder
+    private func gitBadge(_ git: GitRepoInfo) -> some View {
+        Menu {
+            if git.branches.isEmpty {
+                // 空仓库 / unborn 分支：无可切项，仅展示
+                Text("暂无本地分支")
+            } else {
+                ForEach(git.branches, id: \.self) { branch in
+                    Button {
+                        Task { await GitBranchSwitcher.switchBranch(vm: vm, to: branch) }
+                    } label: {
+                        if branch == git.branch {
+                            Label(branch, systemImage: "checkmark")
+                        } else {
+                            Text(branch)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: git.isDetached ? "arrow.triangle.branch.circle" : "arrow.triangle.branch")
+                Text(git.branch)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if git.isDirty {
+                    Circle()
+                        .fill(theme.accent)
+                        .frame(width: 5, height: 5)
+                        .help("有未提交的改动")
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .foregroundStyle(theme.secondaryText)
+        .help(git.isDetached ? "detached HEAD · 点击切换分支" : "git 仓库 · 点击切换分支")
     }
 
     private func formatSelectedSize() -> String {

@@ -28,6 +28,8 @@ public final class PaneViewModel: Identifiable {
     /// 请求列表对某个 item 发起内联重命名（新建文件后 / F2 / 右键重命名）。
     /// 由 NativeFileTable 消费后清回 nil。
     public var pendingRenameID: FileItem.ID? = nil
+    /// 当前目录所属 git 仓库信息（非仓库 / 归档虚拟目录内为 nil）。导航后异步刷新。
+    public var gitInfo: GitRepoInfo? = nil
     public var sortKey: SortKey = .name {
         didSet { items = applyView(allItems) }
     }
@@ -79,6 +81,8 @@ public final class PaneViewModel: Identifiable {
             items = []
         }
         startObserving()
+        // git 探测与列表加载解耦，避免拖慢导航 spinner
+        Task { await refreshGitInfo() }
     }
 
     public func setSearch(_ q: String) {
@@ -182,6 +186,19 @@ public final class PaneViewModel: Identifiable {
         }
     }
 
+    /// 探测当前目录的 git 仓库信息（子进程跑在后台线程，不阻塞 UI）。
+    /// 快速导航时旧结果按路径对比丢弃，避免过期覆盖。
+    public func refreshGitInfo() async {
+        guard (provider as? RoutedFileProvider)?.isInsideArchive(currentPath) != true else {
+            gitInfo = nil
+            return
+        }
+        let probedPath = currentPath
+        let info = await GitRepositoryService.probe(directory: probedPath.displayString)
+        guard probedPath == currentPath else { return }
+        gitInfo = info
+    }
+
     public func reload() async {
         do {
             let result = try await provider.list(currentPath, includeHidden: includeHidden)
@@ -190,6 +207,9 @@ public final class PaneViewModel: Identifiable {
         } catch {
             errorMessage = error.localizedDescription
         }
+        // 外部变化（含用户在其他工具里 commit/切分支）也顺带刷新 git 状态；
+        // reload 本身已被 watcher debounce 过，探测频率可控。
+        Task { await refreshGitInfo() }
     }
 
     public func stopObserving() {
